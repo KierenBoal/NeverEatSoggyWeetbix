@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-public class PlayerCompassMaskTest
+public class ActorCompassMaskTest
 {
 	private static BufferedImage filledImage()
 	{
@@ -27,7 +27,7 @@ public class PlayerCompassMaskTest
 		try
 		{
 			graphics.setColor(new Color(255, 0, 0, 128));
-			new PlayerCompassMask().eraseFaces(graphics, new Rectangle(0, 0, 40, 40),
+			new ActorCompassMask().eraseFaces(graphics, new Rectangle(0, 0, 40, 40),
 				new int[]{2, 14, 2, 24, 36, 36}, new int[]{2, 2, 36, 2, 2, 36},
 				2, new int[]{0, 3}, new int[]{1, 4}, new int[]{2, 5}, null, null);
 			assertEquals(0, image.getRGB(4, 8) >>> 24);
@@ -54,7 +54,7 @@ public class PlayerCompassMaskTest
 			try
 			{
 				int[] x = {2, 36, variant == 2 ? Integer.MIN_VALUE : 2};
-				new PlayerCompassMask().eraseFaces(graphics,
+				new ActorCompassMask().eraseFaces(graphics,
 					variant == 3 ? new Rectangle(50, 50, 10, 10) : new Rectangle(0, 0, 40, 40),
 					x, new int[]{2, 2, 36}, 1, new int[]{0}, new int[]{1}, new int[]{2},
 					variant == 1 ? new int[]{-2} : null, variant == 0 ? new byte[]{(byte) 255} : null);
@@ -75,7 +75,7 @@ public class PlayerCompassMaskTest
 		try
 		{
 			graphics.translate(-100, -200);
-			new PlayerCompassMask().eraseFaces(graphics, new Rectangle(100, 200, 40, 40),
+			new ActorCompassMask().eraseFaces(graphics, new Rectangle(100, 200, 40, 40),
 				new int[]{104, 136, 136, 104}, new int[]{204, 204, 236, 236},
 				2, new int[]{0, 0}, new int[]{1, 2}, new int[]{2, 3}, null, null);
 			for (int y = 5; y < 35; y++)

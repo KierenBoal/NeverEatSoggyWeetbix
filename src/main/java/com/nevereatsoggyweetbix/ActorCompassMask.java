@@ -5,26 +5,53 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.geom.Rectangle2D;
 import java.util.Arrays;
+import net.runelite.api.AABB;
+import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.Model;
 import net.runelite.api.Perspective;
-import net.runelite.api.Player;
 import net.runelite.api.coords.LocalPoint;
 
-/** Removes only the local player's projected faces from the compass buffer. */
-final class PlayerCompassMask
+/** Removes selected actor silhouettes from the compass buffer. */
+final class ActorCompassMask
 {
 	private int[] vertexX = new int[0];
 	private int[] vertexY = new int[0];
 	private final int[] triangleX = new int[3];
 	private final int[] triangleY = new int[3];
 
-	void erase(Graphics2D graphics, Client client, Player player, Model model, Rectangle bounds)
+	void erase(Graphics2D graphics, Client client, Actor actor, Model model, Rectangle bounds, CompassProjection projection)
 	{
 		if (model == null || model.getVerticesCount() == 0)
 		{
 			return;
+		}
+		LocalPoint location = actor.getLocalLocation();
+		if (location == null || actor.getWorldView() == null || projection == null)
+		{
+			return;
+		}
+		Integer ground = CompassAnchor.groundHeight(client, actor.getWorldView(), location);
+		if (ground == null)
+		{
+			return;
+		}
+		int height = ground - actor.getAnimationHeightOffset();
+		AABB box = model.getAABB(actor.getCurrentOrientation());
+		if (box != null)
+		{
+			Rectangle2D projected = ScreenBounds.projectBox(projection,
+				location.getX() + box.getCenterX() - box.getExtremeX(),
+				location.getX() + box.getCenterX() + box.getExtremeX(),
+				location.getY() + box.getCenterZ() - box.getExtremeZ(),
+				location.getY() + box.getCenterZ() + box.getExtremeZ(),
+				height + box.getCenterY() - box.getExtremeY(), height + box.getCenterY() + box.getExtremeY());
+			if (projected != null && !projected.intersects(bounds))
+			{
+				return;
+			}
 		}
 		int count = model.getVerticesCount();
 		if (vertexX.length < count)
@@ -34,19 +61,8 @@ final class PlayerCompassMask
 		}
 		Arrays.fill(vertexX, 0, count, Integer.MIN_VALUE);
 		Arrays.fill(vertexY, 0, count, Integer.MIN_VALUE);
-		LocalPoint location = player.getLocalLocation();
-		if (location == null || player.getWorldView() == null)
-		{
-			return;
-		}
-		Integer ground = CompassAnchor.groundHeight(client, player.getWorldView(), location);
-		if (ground == null)
-		{
-			return;
-		}
-		int height = ground - player.getAnimationHeightOffset();
-		Perspective.modelToCanvas(client, player.getWorldView(), count,
-			location.getX(), location.getY(), height, player.getCurrentOrientation(),
+		Perspective.modelToCanvas(client, actor.getWorldView(), count,
+			location.getX(), location.getY(), height, actor.getCurrentOrientation(),
 			model.getVerticesX(), model.getVerticesZ(), model.getVerticesY(), vertexX, vertexY);
 		eraseFaces(graphics, bounds, vertexX, vertexY, model.getFaceCount(),
 			model.getFaceIndices1(), model.getFaceIndices2(), model.getFaceIndices3(),

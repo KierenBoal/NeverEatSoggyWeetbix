@@ -55,7 +55,7 @@ public class CompassDirectionTest
 		Color half = CompassDirection.withOpacity(new Color(100, 120, 140, 128), 50);
 		assertEquals(new Color(100, 120, 140, 64), half);
 		assertEquals(128, CompassDirection.withOpacity(Color.WHITE, 50).getAlpha());
-		assertEquals(96, CompassDirection.withOpacity(config.currentSubColor(), 75).getAlpha());
+		assertEquals(191, CompassDirection.withOpacity(config.currentSubColor(), 75).getAlpha());
 		assertEquals(0, CompassDirection.withOpacity(Color.RED, -1).getAlpha());
 		assertEquals(255, CompassDirection.withOpacity(Color.RED, 101).getAlpha());
 	}
@@ -85,7 +85,7 @@ public class CompassDirectionTest
 		assertTrue(CompassDirection.NE.connectorVisible(diagonalOnly));
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
-			assertFalse(direction.connectorVisible(config));
+			assertEquals(!direction.diagonal(), direction.connectorVisible(config));
 			assertTrue(direction.lettersVisible(config));
 		}
 	}
@@ -93,22 +93,31 @@ public class CompassDirectionTest
 	@Test
 	public void freshSettingsUseWhiteRingsAccessibleHighlightsAndThinLines()
 	{
-		assertEquals(2, config.connectorThickness());
+		assertEquals(1, config.connectorThickness());
 		assertEquals(1, config.innerThickness());
 		assertEquals(1, config.outerThickness());
-		Color adjacent = new Color(255, 255, 255, 192);
-		assertEquals(adjacent, config.leftColor());
-		assertEquals(adjacent, config.rightColor());
+		Color adjacent = Color.WHITE;
+		assertEquals(Color.WHITE, config.leftColor());
+		assertEquals(Color.WHITE, config.rightColor());
 		assertEquals(adjacent, config.leftSubColor());
 		assertEquals(adjacent, config.rightSubColor());
 		assertEquals(Color.WHITE, config.baseColor());
 		assertEquals(Color.WHITE, config.innerColor());
 		assertEquals(Color.WHITE, config.outerColor());
-		assertEquals(new Color(0x0072B2), config.currentColor());
-		assertEquals(new Color(0xE69F00), config.oppositeColor());
-		assertEquals(new Color(0, 114, 178, 128), config.currentSubColor());
-		assertEquals(new Color(230, 159, 0, 128), config.oppositeSubColor());
-		assertEquals(144, CompassDirection.withOpacity(adjacent, config.overallOpacity()).getAlpha());
+		assertEquals(new Color(0x4187AF), config.currentColor());
+		assertEquals(new Color(0xAD2700), config.oppositeColor());
+		assertEquals(new Color(65, 135, 175, 255), config.currentSubColor());
+		assertEquals(new Color(0xC22C00), config.oppositeSubColor());
+		assertEquals(191, CompassDirection.withOpacity(adjacent, config.overallOpacity()).getAlpha());
 		assertEquals(HighlightCalculation.FACING_CAMERA, config.highlightCalculation());
+		assertTrue(config.drawAboveNpcs());
+		assertEquals(12, config.maxNpcs());
+		assertTrue(config.drawAbovePlayers());
+		assertEquals(12, config.maxPlayers());
+		assertFalse(config.drawAbovePlayer());
+		assertTrue(config.enableDropShadow());
+		assertEquals(Color.BLACK, config.dropShadowColor());
+		assertEquals(1, config.dropShadowOffset());
+		assertEquals(1.5, config.renderDistance(), 0);
 	}
 }

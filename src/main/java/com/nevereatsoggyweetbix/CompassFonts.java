@@ -7,7 +7,7 @@ import net.runelite.client.ui.FontManager;
 final class CompassFonts
 {
 	static final int DEFAULT_MAIN_SIZE = 24;
-	private static final float DIAGONAL_SCALE = 0.75f;
+	static final int DEFAULT_SUB_SIZE = 20;
 
 	final Font cardinal;
 	final Font diagonal;
@@ -24,12 +24,23 @@ final class CompassFonts
 		{
 			return new CompassFonts(
 				FontManager.getRunescapeBoldFont().deriveFont((float) DEFAULT_MAIN_SIZE),
-				FontManager.getRunescapeSmallFont().deriveFont(DEFAULT_MAIN_SIZE * DIAGONAL_SCALE));
+				FontManager.getRunescapeSmallFont().deriveFont((float) DEFAULT_SUB_SIZE));
 		}
-		FontType selected = config.customFont();
-		Font main = selected == null ? new Font(Font.SANS_SERIF, Font.PLAIN, DEFAULT_MAIN_SIZE) : selected.getFont();
+		return new CompassFonts(
+			configuredFont(config.customFont(), DEFAULT_MAIN_SIZE),
+			configuredFont(config.subDirectionFont(), DEFAULT_SUB_SIZE));
+	}
+
+	private static Font configuredFont(FontType selected, int defaultSize)
+	{
+		Font font = selected == null ? null : selected.getFont();
+		if (font == null)
+		{
+			font = new Font(Font.SANS_SERIF, Font.PLAIN, defaultSize);
+		}
 		// Bound damaged/hand-edited settings before allocating glyph outlines.
-		main = main.deriveFont(Math.max(1f, Math.min(512f, main.getSize2D())));
-		return new CompassFonts(main, main.deriveFont(main.getSize2D() * DIAGONAL_SCALE));
+		float size = Float.isFinite(font.getSize2D())
+			? Math.max(1f, Math.min(512f, font.getSize2D())) : defaultSize;
+		return font.deriveFont(size);
 	}
 }

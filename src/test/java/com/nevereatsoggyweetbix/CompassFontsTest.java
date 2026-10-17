@@ -9,38 +9,42 @@ import static org.junit.Assert.*;
 public class CompassFontsTest
 {
 	@Test
-	public void builtInFontsUseTwentyFourAndEighteenPixels()
+	public void builtInFontsUseTwentyFourAndTwentyPixels()
 	{
 		PlayerCompassConfig config = new PlayerCompassConfig() {};
 		CompassFonts fonts = CompassFonts.fromConfig(config);
 		assertEquals(24f, fonts.cardinal.getSize2D(), 0f);
-		assertEquals(18f, fonts.diagonal.getSize2D(), 0f);
+		assertEquals(20f, fonts.diagonal.getSize2D(), 0f);
 		assertEquals(FontManager.getRunescapeBoldFont().getFamily(), fonts.cardinal.getFamily());
 		assertEquals(FontManager.getRunescapeSmallFont().getFamily(), fonts.diagonal.getFamily());
 		assertEquals(24, config.customFont().getSize());
+		assertEquals(20, config.subDirectionFont().getSize());
 	}
 
 	@Test
-	public void customFontPreservesSelectedMainSizeAndStyleWithFractionalDiagonalSize()
+	public void customFontsPreserveTheirIndependentSizesAndStyles()
 	{
-		Font selected = new Font(Font.SERIF, Font.BOLD | Font.ITALIC, 25).deriveFont(25.5f);
+		Font selectedCardinal = new Font(Font.SERIF, Font.BOLD | Font.ITALIC, 25).deriveFont(25.5f);
+		Font selectedSubDirection = new Font(Font.MONOSPACED, Font.PLAIN, 17).deriveFont(17.25f);
 		PlayerCompassConfig config = new PlayerCompassConfig()
 		{
 			@Override public boolean useCustomFont() { return true; }
-			@Override public FontType customFont() { return new FontType().withFont(selected); }
+			@Override public FontType customFont() { return new FontType().withFont(selectedCardinal); }
+			@Override public FontType subDirectionFont() { return new FontType().withFont(selectedSubDirection); }
 		};
 		CompassFonts fonts = CompassFonts.fromConfig(config);
 		assertEquals(25.5f, fonts.cardinal.getSize2D(), 0f);
-		assertEquals(19.125f, fonts.diagonal.getSize2D(), 0f);
-		assertEquals(selected.getFamily(), fonts.cardinal.getFamily());
-		assertEquals(selected.getFamily(), fonts.diagonal.getFamily());
-		assertEquals(selected.getStyle(), fonts.cardinal.getStyle());
-		assertEquals(selected.getStyle(), fonts.diagonal.getStyle());
-		assertEquals(25.5f, selected.getSize2D(), 0f);
+		assertEquals(17.25f, fonts.diagonal.getSize2D(), 0f);
+		assertEquals(selectedCardinal.getFamily(), fonts.cardinal.getFamily());
+		assertEquals(selectedSubDirection.getFamily(), fonts.diagonal.getFamily());
+		assertEquals(selectedCardinal.getStyle(), fonts.cardinal.getStyle());
+		assertEquals(selectedSubDirection.getStyle(), fonts.diagonal.getStyle());
+		assertEquals(25.5f, selectedCardinal.getSize2D(), 0f);
+		assertEquals(17.25f, selectedSubDirection.getSize2D(), 0f);
 	}
 
 	@Test
-	public void missingCustomSelectionFallsBackToTwentyFourAndEighteenPixels()
+	public void missingCustomSelectionFallsBackToTwentyFourAndTwentyPixels()
 	{
 		PlayerCompassConfig config = new PlayerCompassConfig()
 		{
@@ -49,7 +53,7 @@ public class CompassFontsTest
 		};
 		CompassFonts fonts = CompassFonts.fromConfig(config);
 		assertEquals(24f, fonts.cardinal.getSize2D(), 0f);
-		assertEquals(18f, fonts.diagonal.getSize2D(), 0f);
+		assertEquals(20f, fonts.diagonal.getSize2D(), 0f);
 	}
 
 	@Test
@@ -61,7 +65,7 @@ public class CompassFontsTest
 		};
 		CompassFonts fonts = CompassFonts.fromConfig(config);
 		assertEquals(24f, fonts.cardinal.getSize2D(), 0f);
-		assertEquals(18f, fonts.diagonal.getSize2D(), 0f);
+		assertEquals(20f, fonts.diagonal.getSize2D(), 0f);
 		assertEquals(40, config.customFont().getSize());
 	}
 }

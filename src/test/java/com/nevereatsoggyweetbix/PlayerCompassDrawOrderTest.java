@@ -15,6 +15,53 @@ import static org.junit.Assert.*;
 public class PlayerCompassDrawOrderTest
 {
 	@Test
+	public void shadowToggleAndOverallOpacityAreAppliedIndependentlyToTextAndShadow()
+	{
+		for (boolean enabled : new boolean[]{false, true})
+		{
+			PlayerCompassConfig config = new PlayerCompassConfig()
+			{
+				@Override public boolean useCustomFont() { return true; }
+				@Override public FontType customFont() { return new FontType().withFont(new Font(Font.SANS_SERIF, Font.BOLD, 24)); }
+				@Override public int overallOpacity() { return 50; }
+				@Override public Color currentColor() { return new Color(86, 180, 233, 128); }
+				@Override public boolean enableDropShadow() { return enabled; }
+				@Override public int dropShadowOffset() { return 32; }
+			};
+			CompassGeometry geometry = new CompassGeometry();
+			geometry.labels[CompassDirection.N.ordinal()] = new Point2D.Double(35, 35);
+			BufferedImage image = new BufferedImage(110, 110, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try
+			{
+				graphics.setClip(0, 0, 110, 110);
+				PlayerCompassOverlay overlay = new PlayerCompassOverlay(null, config);
+				overlay.updateFonts(graphics);
+				overlay.drawCompass(graphics, 0, geometry);
+				assertEquals(64, maxAlpha(image, 20, 20, 30, 30));
+				assertEquals(enabled ? 128 : 0, maxAlpha(image, 52, 52, 30, 30));
+			}
+			finally
+			{
+				graphics.dispose();
+			}
+		}
+	}
+
+	private static int maxAlpha(BufferedImage image, int x0, int y0, int width, int height)
+	{
+		int max = 0;
+		for (int y = y0; y < y0 + height; y++)
+		{
+			for (int x = x0; x < x0 + width; x++)
+			{
+				max = Math.max(max, image.getRGB(x, y) >>> 24);
+			}
+		}
+		return max;
+	}
+
+	@Test
 	public void lettersCoverBothCirclesAndLaterDirectionConnectors()
 	{
 		for (LetterRotation rotation : LetterRotation.values())

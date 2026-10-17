@@ -208,6 +208,33 @@ public class CompassGeometryTest
 	}
 
 	@Test
+	public void fractionalRadiiCanPlaceTheRingCloserThanOneTile()
+	{
+		CompassAnchor anchor = anchor(5000, -1200, 0.7, 0);
+		for (double tiles : new double[]{0.01, 0.125, 0.5, 0.75})
+		{
+			assertWorldRings(anchor, tiles * net.runelite.api.Perspective.LOCAL_TILE_SIZE, 40);
+		}
+	}
+
+	@Test
+	public void zeroRadiusCollapsesInnerRingAndSpokesButRetainsOuterBandAndLabels()
+	{
+		CompassAnchor anchor = anchor(5000, -1200, 0.7, 0);
+		CompassGeometry geometry = new CompassGeometry();
+		geometry.update(anchor, 0, 40);
+		assertNull(geometry.inner.getCurrentPoint());
+		assertNotNull(geometry.outer.getCurrentPoint());
+		double radius = 20 / anchor.projection.horizontalScaleAt(anchor.x, anchor.y, anchor.height);
+		for (CompassDirection direction : CompassDirection.ALL)
+		{
+			assertNull(geometry.spokes[direction.ordinal()].getCurrentPoint());
+			Point2D.Double point = unproject(anchor, geometry.labels[direction.ordinal()]);
+			assertEquals(radius, point.distance(anchor.x, anchor.y), 1e-6);
+		}
+	}
+
+	@Test
 	public void screenTranslationPreservesShapeAndSetsCenter()
 	{
 		CompassAnchor original = anchor(5000, -1200, 0.7, -256);

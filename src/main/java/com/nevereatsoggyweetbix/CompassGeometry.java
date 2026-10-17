@@ -46,7 +46,7 @@ final class CompassGeometry
 		Point2D.Double center = anchor.project(0, 0);
 		double pixelScale = anchor.projection.horizontalScaleAt(anchor.x, anchor.y, anchor.height);
 		double worldGap = bandWidth / pixelScale;
-		if (center == null || !Double.isFinite(radius) || radius <= 0
+		if (center == null || !Double.isFinite(radius) || radius < 0
 			|| !Double.isFinite(worldGap) || worldGap < 0)
 		{
 			return;
@@ -60,7 +60,10 @@ final class CompassGeometry
 		{
 			Point2D.Double point = anchor.project(CIRCLE_X[i] * radius, CIRCLE_Y[i] * radius);
 			Point2D.Double outside = anchor.project(CIRCLE_X[i] * outerRadius, CIRCLE_Y[i] * outerRadius);
-			innerPenDown = append(inner, point, innerPenDown);
+			if (radius > 0)
+			{
+				innerPenDown = append(inner, point, innerPenDown);
+			}
 			outerPenDown = append(outer, outside, outerPenDown);
 		}
 		for (CompassDirection direction : CompassDirection.ALL)
@@ -72,7 +75,7 @@ final class CompassGeometry
 			Path2D.Double spoke = spokes[index];
 			Point2D.Double start = anchor.project(direction.x * radius * 0.35, direction.y * radius * 0.35);
 			Point2D.Double end = anchor.project(direction.x * radius * 0.85, direction.y * radius * 0.85);
-			if (start != null && end != null)
+			if (radius > 0 && start != null && end != null)
 			{
 				spoke.moveTo(start.x, start.y);
 				spoke.lineTo(end.x, end.y);

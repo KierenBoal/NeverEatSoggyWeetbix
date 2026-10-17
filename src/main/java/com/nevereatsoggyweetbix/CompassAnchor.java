@@ -50,17 +50,20 @@ final class CompassAnchor
 			{
 				return null;
 			}
-			Tile tile = worldView.getSelectedSceneTile();
-			if (tile == null && !worldView.isTopLevel())
+			if (mode == AnchorMode.MOUSE_TILE)
 			{
-				worldView = client.getTopLevelWorldView();
-				tile = worldView == null ? null : worldView.getSelectedSceneTile();
+				Tile tile = worldView.getSelectedSceneTile();
+				if (tile == null && !worldView.isTopLevel())
+				{
+					worldView = client.getTopLevelWorldView();
+					tile = worldView == null ? null : worldView.getSelectedSceneTile();
+				}
+				if (tile == null || tile.getPlane() != worldView.getPlane())
+				{
+					return null;
+				}
+				location = tile.getLocalLocation();
 			}
-			if (tile == null || tile.getPlane() != worldView.getPlane())
-			{
-				return null;
-			}
-			location = tile.getLocalLocation();
 		}
 		else if (mode == AnchorMode.PLAYER_TRUE_TILE)
 		{
@@ -82,7 +85,7 @@ final class CompassAnchor
 			return null;
 		}
 		double height = groundHeight;
-		if (!mouseAnchor && mode != AnchorMode.PLAYER_TRUE_TILE)
+		if (mode != AnchorMode.MOUSE_TILE && mode != AnchorMode.PLAYER_TRUE_TILE)
 		{
 			height -= player.getAnimationHeightOffset();
 		}
@@ -93,9 +96,7 @@ final class CompassAnchor
 		if (mode == AnchorMode.MOUSE_POSITION)
 		{
 			Point2D.Double ground = projection.unproject(mouse.getX(), mouse.getY(), height);
-			if (ground == null || ground.x < 0 || ground.y < 0
-				|| ground.x >= worldView.getSizeX() * Perspective.LOCAL_TILE_SIZE
-				|| ground.y >= worldView.getSizeY() * Perspective.LOCAL_TILE_SIZE)
+			if (ground == null)
 			{
 				return null;
 			}

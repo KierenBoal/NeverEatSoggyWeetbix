@@ -73,4 +73,30 @@ public class CompassProjectionTest
 			assertEquals(-Math.PI / 2, projection.heading(), 1e-9);
 		}
 	}
+
+	@Test
+	public void continuousMouseRayUsesOneFeetPlaneWithoutTerrainOrSceneBoundarySnapping()
+	{
+		CompassProjection projection = new CompassProjection(
+			CompassProjection.cameraMatrix(0.3, 0.7, 6000, 5000, -1200), 400, 300, 800);
+		double feetHeight = -120;
+		Point2D.Double previous = null;
+		for (int x = 200; x <= 600; x++)
+		{
+			Point2D.Double ground = projection.unproject(x, 400, feetHeight);
+			assertNotNull(ground);
+			Point2D.Double screen = projection.project(ground.x, ground.y, feetHeight);
+			assertEquals(x, screen.x, 1e-6);
+			assertEquals(400, screen.y, 1e-6);
+			if (previous != null)
+			{
+				assertTrue(ground.distance(previous) < 10);
+			}
+			previous = ground;
+		}
+		Point2D.Double outsideScene = projection.project(20000, 20000, feetHeight);
+		Point2D.Double world = projection.unproject(outsideScene.x, outsideScene.y, feetHeight);
+		assertEquals(20000, world.x, 1e-6);
+		assertEquals(20000, world.y, 1e-6);
+	}
 }
