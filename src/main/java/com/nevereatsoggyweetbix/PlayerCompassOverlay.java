@@ -20,8 +20,6 @@ import net.runelite.api.GameState;
 import net.runelite.api.Model;
 import net.runelite.api.Perspective;
 import net.runelite.api.Player;
-import net.runelite.client.config.FontType;
-import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -88,6 +86,10 @@ public class PlayerCompassOverlay extends Overlay
 		{
 			return null;
 		}
+		HighlightCalculation highlight = config.highlightCalculation();
+		CompassProjection playerProjection = highlight == HighlightCalculation.FACING_PLAYER
+			? CompassProjection.create(client, player.getWorldView()) : null;
+		double heading = highlight.heading(anchor.projection, player.getCurrentOrientation(), playerProjection);
 		Graphics2D target;
 		boolean masked = !config.drawAbovePlayer() && model != null;
 		if (masked)
@@ -107,7 +109,7 @@ public class PlayerCompassOverlay extends Overlay
 		{
 			target.clip(bounds);
 			target.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			drawCompass(target, anchor.projection.heading());
+			drawCompass(target, heading, geometry);
 			if (masked)
 			{
 				playerMask.erase(target, client, player, model, bounds);
@@ -126,7 +128,14 @@ public class PlayerCompassOverlay extends Overlay
 		return null;
 	}
 
-	private void drawCompass(Graphics2D graphics, double heading)
+	void drawCompass(Graphics2D graphics, double heading, CompassGeometry geometry)
+	{
+		drawCircles(graphics, geometry);
+		drawConnectors(graphics, heading, geometry);
+		drawLetters(graphics, heading, geometry);
+	}
+
+	private void drawCircles(Graphics2D graphics, CompassGeometry geometry)
 	{
 		if (config.showInnerRing())
 		{
@@ -140,16 +149,26 @@ public class PlayerCompassOverlay extends Overlay
 			graphics.setColor(opacity(config.outerColor()));
 			graphics.draw(geometry.outer);
 		}
+	}
+
+	private void drawConnectors(Graphics2D graphics, double heading, CompassGeometry geometry)
+	{
 		graphics.setStroke(stroke(config.connectorThickness()));
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
-			int index = direction.ordinal();
-			Color directionColor = direction.color(config, heading);
 			if (direction.connectorVisible(config))
 			{
-				graphics.setColor(opacity(config.connectorDirectionColors() ? directionColor : config.baseColor()));
-				graphics.draw(geometry.spokes[index]);
+				graphics.setColor(opacity(config.connectorDirectionColors() ? direction.color(config, heading) : config.baseColor()));
+				graphics.draw(geometry.spokes[direction.ordinal()]);
 			}
+		}
+	}
+
+	private void drawLetters(Graphics2D graphics, double heading, CompassGeometry geometry)
+	{
+		for (CompassDirection direction : CompassDirection.ALL)
+		{
+			int index = direction.ordinal();
 			Point2D.Double label = geometry.labels[index];
 			if (label == null || !direction.lettersVisible(config))
 			{
@@ -163,13 +182,13 @@ public class PlayerCompassOverlay extends Overlay
 			}
 			Rectangle2D textBounds = glyphBounds[index];
 			graphics.translate(-textBounds.getCenterX(), -textBounds.getCenterY());
-			graphics.setColor(opacity(directionColor));
+			graphics.setColor(opacity(direction.color(config, heading)));
 			graphics.fill(glyphs[index]);
 			graphics.setTransform(transform);
 		}
 	}
 
-	private void updateFonts(Graphics2D graphics)
+	void updateFonts(Graphics2D graphics)
 	{
 		FontRenderContext context = graphics.getFontRenderContext();
 		if (!fontsDirty && context.equals(fontContext))
@@ -178,26 +197,12 @@ public class PlayerCompassOverlay extends Overlay
 		}
 		fontsDirty = false;
 		fontContext = context;
-		Font large;
-		Font small;
-		if (config.useCustomFont())
-		{
-			FontType selected = config.customFont();
-			large = selected == null ? new Font(Font.SANS_SERIF, Font.PLAIN, 32) : selected.getFont();
-			// Bound damaged/hand-edited settings before allocating glyph outlines.
-			large = large.deriveFont(Math.max(1f, Math.min(512f, large.getSize2D())));
-			small = large.deriveFont(large.getSize2D() / 2f);
-		}
-		else
-		{
-			large = FontManager.getRunescapeBoldFont().deriveFont(32f);
-			small = FontManager.getRunescapeSmallFont().deriveFont(16f);
-		}
+		CompassFonts fonts = CompassFonts.fromConfig(config);
 		letterFootprint = 0;
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
 			int index = direction.ordinal();
-			Font font = direction.diagonal() ? small : large;
+			Font font = direction.diagonal() ? fonts.diagonal : fonts.cardinal;
 			glyphs[index] = font.createGlyphVector(context, direction.name()).getOutline();
 			glyphBounds[index] = glyphs[index].getBounds2D();
 			letterFootprint = Math.max(letterFootprint,

@@ -72,28 +72,28 @@ public interface PlayerCompassConfig extends Config
 		return LetterRotation.ALWAYS_UP;
 	}
 
-	@ConfigItem(keyName = "useCustomFont", name = "Use Custom font", description = "Use the custom font below instead of RuneScape big and small fonts.", section = labels, position = 6)
+	@ConfigItem(keyName = "useCustomFont", name = "Use Custom font", description = "Use the custom font below instead of RuneScape cardinal (24 px) and diagonal (18 px) fonts.", section = labels, position = 6)
 	default boolean useCustomFont()
 	{
 		return false;
 	}
 
-	@ConfigItem(keyName = "customFont", name = "Custom font", description = "Font family, main-letter size and style. Used only when Use Custom font is enabled; diagonals are half-size.", section = labels, position = 7)
+	@ConfigItem(keyName = "customFont", name = "Custom font", description = "Font family, main-letter size and style. Used only when Use Custom font is enabled; diagonals are 75% of the main size.", section = labels, position = 7)
 	default FontType customFont()
 	{
-		return new FontType().withFamily("SansSerif").withSize(32);
+		return new FontType().withFamily("SansSerif").withSize(CompassFonts.DEFAULT_MAIN_SIZE);
 	}
 
 	@ConfigItem(keyName = "showCardinalConnectors", name = "Show cardinal connectors", description = "Show the four short N/E/S/W spokes.", section = connectors, position = 8)
 	default boolean showCardinalConnectors()
 	{
-		return true;
+		return false;
 	}
 
 	@ConfigItem(keyName = "showDiagonalConnectors", name = "Show diagonal connectors", description = "Show the four short NE/SE/SW/NW spokes.", section = connectors, position = 9)
 	default boolean showDiagonalConnectors()
 	{
-		return true;
+		return false;
 	}
 
 	@ConfigItem(keyName = "connectorDirectionColors", name = "Connector lines use direction colors", description = "Use matching direction colors; otherwise use Base color.", section = connectors, position = 10)
@@ -107,7 +107,7 @@ public interface PlayerCompassConfig extends Config
 	@ConfigItem(keyName = "connectorThickness", name = "Connector line thickness", description = "Screen-pixel width of all connector lines.", section = connectors, position = 11)
 	default int connectorThickness()
 	{
-		return 3;
+		return 2;
 	}
 
 	@ConfigItem(keyName = "showInnerRing", name = "Show inner ring", description = "Draw the inner ring at the render distance.", section = rings, position = 12)
@@ -127,7 +127,7 @@ public interface PlayerCompassConfig extends Config
 	@ConfigItem(keyName = "innerThickness", name = "Inner circle thickness", description = "Screen-pixel width of the inner circle.", section = rings, position = 14)
 	default int innerThickness()
 	{
-		return 3;
+		return 1;
 	}
 
 	@Range(min = 1, max = 12)
@@ -135,12 +135,12 @@ public interface PlayerCompassConfig extends Config
 	@ConfigItem(keyName = "outerThickness", name = "Outer circle thickness", description = "Screen-pixel width of the outer circle.", section = rings, position = 15)
 	default int outerThickness()
 	{
-		return 3;
+		return 1;
 	}
 
 	@Range(min = 0, max = 128)
 	@Units("px")
-	@ConfigItem(keyName = "ringPadding", name = "Padding between inner and outer circle", description = "Extra screen-pixel padding on each side of the letter band.", section = rings, position = 16)
+	@ConfigItem(keyName = "ringPadding", name = "Padding between inner and outer circle", description = "Extra padding on each side of the letter band, measured in pixels at the anchor's horizontal scale. Foreshortens with the floor.", section = rings, position = 16)
 	default int ringPadding()
 	{
 		return 4;
@@ -160,60 +160,66 @@ public interface PlayerCompassConfig extends Config
 		return 75;
 	}
 
+	@ConfigItem(keyName = "highlightCalculation", name = "Highlight calculation", description = "Choose camera heading, the player's current yaw, or fixed north to assign direction colors.", section = colors, position = 18)
+	default HighlightCalculation highlightCalculation()
+	{
+		return HighlightCalculation.FACING_CAMERA;
+	}
+
 	@Alpha
-	@ConfigItem(keyName = "currentColor", name = "Current direction color", description = "Nearest cardinal to the direction the camera looks toward.", section = colors, position = 19)
+	@ConfigItem(keyName = "currentColor", name = "Current direction color", description = "Nearest cardinal to the selected highlight heading.", section = colors, position = 19)
 	default Color currentColor()
 	{
-		return new Color(255, 0, 0, 255);
+		return new Color(0, 114, 178, 255);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "oppositeColor", name = "Opposite direction color", description = "Cardinal opposite the current cardinal.", section = colors, position = 20)
 	default Color oppositeColor()
 	{
-		return new Color(0, 255, 0, 255);
+		return new Color(230, 159, 0, 255);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "leftColor", name = "Left adjacent direction color", description = "Cardinal 90 degrees counterclockwise from the current cardinal.", section = colors, position = 21)
 	default Color leftColor()
 	{
-		return Color.WHITE;
+		return new Color(255, 255, 255, 192);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "rightColor", name = "Right adjacent direction color", description = "Cardinal 90 degrees clockwise from the current cardinal.", section = colors, position = 22)
 	default Color rightColor()
 	{
-		return Color.WHITE;
+		return new Color(255, 255, 255, 192);
 	}
 
 	@Alpha
-	@ConfigItem(keyName = "currentSubColor", name = "Current subdirection color", description = "Nearest diagonal to the camera heading; exact ties choose clockwise.", section = colors, position = 23)
+	@ConfigItem(keyName = "currentSubColor", name = "Current subdirection color", description = "Nearest diagonal to the selected highlight heading; exact ties choose clockwise.", section = colors, position = 23)
 	default Color currentSubColor()
 	{
-		return new Color(255, 128, 128, 128);
+		return new Color(0, 114, 178, 128);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "oppositeSubColor", name = "Opposite subdirection color", description = "Diagonal opposite the current diagonal.", section = colors, position = 24)
 	default Color oppositeSubColor()
 	{
-		return new Color(128, 255, 128, 128);
+		return new Color(230, 159, 0, 128);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "leftSubColor", name = "Left adjacent subdirection color", description = "Diagonal 90 degrees counterclockwise from the current diagonal.", section = colors, position = 25)
 	default Color leftSubColor()
 	{
-		return new Color(255, 255, 255, 128);
+		return new Color(255, 255, 255, 192);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "rightSubColor", name = "Right adjacent subdirection color", description = "Diagonal 90 degrees clockwise from the current diagonal.", section = colors, position = 26)
 	default Color rightSubColor()
 	{
-		return new Color(255, 255, 255, 128);
+		return new Color(255, 255, 255, 192);
 	}
 
 	@Alpha

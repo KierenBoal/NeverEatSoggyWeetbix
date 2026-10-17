@@ -130,6 +130,15 @@ final class CompassProjection
 		return Math.atan2(-matrix[0][1], matrix[0][0]);
 	}
 
+	/** Pixel scale along camera-right on the horizontal plane, measured at the anchor. */
+	double horizontalScaleAt(double x, double y, double height)
+	{
+		double depth = transform(2, x, y, height);
+		double horizontalScale = scale * Math.hypot(matrix[0][0], matrix[0][1]) / depth;
+		return depth >= NEAR_PLANE && Double.isFinite(horizontalScale) && horizontalScale > 0
+			? horizontalScale : Double.NaN;
+	}
+
 	private double transform(int row, double x, double y, double z)
 	{
 		return matrix[row][0] * x + matrix[row][1] * y + matrix[row][2] * z + matrix[row][3];

@@ -66,6 +66,7 @@ public class CompassDirectionTest
 		PlayerCompassConfig cardinalOnly = new PlayerCompassConfig()
 		{
 			@Override public boolean hideCardinals() { return true; }
+			@Override public boolean showCardinalConnectors() { return true; }
 			@Override public boolean showDiagonalConnectors() { return false; }
 		};
 		assertFalse(CompassDirection.N.lettersVisible(cardinalOnly));
@@ -75,6 +76,7 @@ public class CompassDirectionTest
 		PlayerCompassConfig diagonalOnly = new PlayerCompassConfig()
 		{
 			@Override public boolean hideDiagonals() { return true; }
+			@Override public boolean showDiagonalConnectors() { return true; }
 			@Override public boolean showCardinalConnectors() { return false; }
 		};
 		assertTrue(CompassDirection.N.lettersVisible(diagonalOnly));
@@ -83,8 +85,30 @@ public class CompassDirectionTest
 		assertTrue(CompassDirection.NE.connectorVisible(diagonalOnly));
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
-			assertTrue(direction.connectorVisible(config));
+			assertFalse(direction.connectorVisible(config));
 			assertTrue(direction.lettersVisible(config));
 		}
+	}
+
+	@Test
+	public void freshSettingsUseWhiteRingsAccessibleHighlightsAndThinLines()
+	{
+		assertEquals(2, config.connectorThickness());
+		assertEquals(1, config.innerThickness());
+		assertEquals(1, config.outerThickness());
+		Color adjacent = new Color(255, 255, 255, 192);
+		assertEquals(adjacent, config.leftColor());
+		assertEquals(adjacent, config.rightColor());
+		assertEquals(adjacent, config.leftSubColor());
+		assertEquals(adjacent, config.rightSubColor());
+		assertEquals(Color.WHITE, config.baseColor());
+		assertEquals(Color.WHITE, config.innerColor());
+		assertEquals(Color.WHITE, config.outerColor());
+		assertEquals(new Color(0x0072B2), config.currentColor());
+		assertEquals(new Color(0xE69F00), config.oppositeColor());
+		assertEquals(new Color(0, 114, 178, 128), config.currentSubColor());
+		assertEquals(new Color(230, 159, 0, 128), config.oppositeSubColor());
+		assertEquals(144, CompassDirection.withOpacity(adjacent, config.overallOpacity()).getAlpha());
+		assertEquals(HighlightCalculation.FACING_CAMERA, config.highlightCalculation());
 	}
 }
