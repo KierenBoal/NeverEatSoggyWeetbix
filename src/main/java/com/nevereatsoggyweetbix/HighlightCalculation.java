@@ -1,12 +1,14 @@
 package com.nevereatsoggyweetbix;
 
+import java.awt.geom.Point2D;
 import net.runelite.api.Perspective;
 
 public enum HighlightCalculation
 {
 	FACING_CAMERA("Facing camera"),
 	FACING_PLAYER("Facing player"),
-	STATIC("Static");
+	STATIC("Static"),
+	FROM_PLAYER_TO_MOUSE("From player to mouse");
 
 	private final String label;
 
@@ -43,5 +45,25 @@ public enum HighlightCalculation
 	public String toString()
 	{
 		return label;
+	}
+
+	/** Resolve the cursor on the player's feet plane, then express its heading in the anchor's axes. */
+	static double mouseHeading(CompassProjection anchorProjection, CompassProjection playerProjection,
+		double playerX, double playerY, double feetHeight, double mouseX, double mouseY)
+	{
+		if (playerProjection != null)
+		{
+			Point2D.Double target = playerProjection.unproject(mouseX, mouseY, feetHeight);
+			if (target != null)
+			{
+				double dx = target.x - playerX, dy = target.y - playerY;
+				if (Double.isFinite(dx) && Double.isFinite(dy) && Math.hypot(dx, dy) > 1e-6)
+				{
+					return Math.atan2(dx, dy) + anchorProjection.heading() - playerProjection.heading();
+				}
+			}
+		}
+		// No direction exists at the feet, outside the scene viewport, or beyond the ground horizon.
+		return anchorProjection.heading();
 	}
 }

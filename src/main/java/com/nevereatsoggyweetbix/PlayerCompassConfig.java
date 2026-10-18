@@ -33,6 +33,59 @@ public interface PlayerCompassConfig extends Config
 	@ConfigSection(name = "Colors", description = "Colors settings", position = 5, closedByDefault = true)
 	String colors = "colors";
 
+	@ConfigSection(name = "Directional indicator", description = "A shape outside the ring that follows the highlight heading.", position = 6, closedByDefault = true)
+	String directionalIndicator = "directionalIndicator";
+
+	@ConfigItem(keyName = "directionalIndicatorEnabled", name = "Enabled", description = "Show an indicator pointing toward the exact highlight heading, even when the rings are hidden.", section = directionalIndicator, position = 0)
+	default boolean directionalIndicatorEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(keyName = "directionalIndicatorShape", name = "Shape", description = "Indicator silhouette. Unequal width and height stretch Square and Circle into a rectangle or ellipse.", section = directionalIndicator, position = 1)
+	default DirectionalIndicatorShape directionalIndicatorShape()
+	{
+		return DirectionalIndicatorShape.ARROW;
+	}
+
+	@Alpha
+	@ConfigItem(keyName = "directionalIndicatorFillColor", name = "Fill color", description = "Indicator fill color, multiplied by overall opacity. Set alpha to zero for an outline only.", section = directionalIndicator, position = 2)
+	default Color directionalIndicatorFillColor()
+	{
+		return Color.WHITE;
+	}
+
+	@Alpha
+	@ConfigItem(keyName = "directionalIndicatorLineColor", name = "Line color", description = "Indicator outline color, multiplied by overall opacity.", section = directionalIndicator, position = 3)
+	default Color directionalIndicatorLineColor()
+	{
+		return Color.WHITE;
+	}
+
+	@Range(min = 1, max = 12)
+	@Units("px")
+	@ConfigItem(keyName = "directionalIndicatorLineThickness", name = "Line thickness", description = "Screen-pixel thickness of the indicator outline.", section = directionalIndicator, position = 4)
+	default int directionalIndicatorLineThickness()
+	{
+		return 1;
+	}
+
+	@Range(min = 1, max = 128)
+	@Units("px")
+	@ConfigItem(keyName = "directionalIndicatorWidth", name = "Width", description = "Width across the heading at the anchor's horizontal pixel scale, before ground-plane perspective.", section = directionalIndicator, position = 5)
+	default int directionalIndicatorWidth()
+	{
+		return 32;
+	}
+
+	@Range(min = 1, max = 128)
+	@Units("px")
+	@ConfigItem(keyName = "directionalIndicatorHeight", name = "Height", description = "Length outward toward the tip at the anchor's horizontal pixel scale, before ground-plane perspective.", section = directionalIndicator, position = 6)
+	default int directionalIndicatorHeight()
+	{
+		return 32;
+	}
+
 	@ConfigItem(keyName = "anchorMode", name = "Anchor mode", description = "Where the compass is anchored.", section = placement, position = 0)
 	default AnchorMode anchorMode()
 	{
@@ -43,7 +96,7 @@ public interface PlayerCompassConfig extends Config
 	@ConfigItem(keyName = "renderDistance", name = "Ring size in tiles", description = "Inner ring radius in world tiles, including fractional values from 0 to 128.", section = placement, position = 1)
 	default double renderDistance()
 	{
-		return 1.5;
+		return 1.0;
 	}
 
 	@Range(min = -512, max = 512)
@@ -115,6 +168,27 @@ public interface PlayerCompassConfig extends Config
 		return 1;
 	}
 
+	@ConfigItem(keyName = "enableConnectorDropShadow", name = "Enable connector drop shadow", description = "Draw shadows behind all visible connector lines.", section = connectors, position = 12)
+	default boolean enableConnectorDropShadow()
+	{
+		return true;
+	}
+
+	@Range(min = 0, max = 128)
+	@Units("px")
+	@ConfigItem(keyName = "connectorDropShadowOffset", name = "Connector drop shadow offset", description = "Screen-pixel offset down and right from each connector.", section = connectors, position = 13)
+	default int connectorDropShadowOffset()
+	{
+		return 1;
+	}
+
+	@Alpha
+	@ConfigItem(keyName = "connectorDropShadowColor", name = "Connector drop shadow color", description = "Connector shadow color. Its alpha is multiplied by overall opacity.", section = connectors, position = 14)
+	default Color connectorDropShadowColor()
+	{
+		return Color.BLACK;
+	}
+
 	@ConfigItem(keyName = "showInnerRing", name = "Show inner ring", description = "Draw the inner ring at the render distance.", section = rings, position = 12)
 	default boolean showInnerRing()
 	{
@@ -162,7 +236,7 @@ public interface PlayerCompassConfig extends Config
 	@ConfigItem(keyName = "overallOpacity", name = "Overall opacity", description = "Multiply each configured color's alpha by this percentage.", section = appearance, position = 18)
 	default int overallOpacity()
 	{
-		return 75;
+		return 100;
 	}
 
 	@ConfigItem(keyName = "drawAboveNpcs", name = "Draw above NPCs", description = "Draw over NPCs. Turn off to mask the compass under NPC silhouettes, using additional CPU.", section = appearance, position = 19)
@@ -191,7 +265,7 @@ public interface PlayerCompassConfig extends Config
 		return 12;
 	}
 
-	@ConfigItem(keyName = "highlightCalculation", name = "Highlight calculation", description = "Choose camera heading, the player's current yaw, or fixed north to assign direction colors.", section = appearance, position = 23)
+	@ConfigItem(keyName = "highlightCalculation", name = "Highlight calculation", description = "Choose camera heading, player yaw, fixed north, or the direction from your player to the mouse on a flat feet-height plane. Invalid mouse targets use camera heading.", section = appearance, position = 23)
 	default HighlightCalculation highlightCalculation()
 	{
 		return HighlightCalculation.FACING_CAMERA;
@@ -201,28 +275,28 @@ public interface PlayerCompassConfig extends Config
 	@ConfigItem(keyName = "currentColor", name = "Current direction color", description = "Nearest cardinal to the selected highlight heading.", section = colors, position = 19)
 	default Color currentColor()
 	{
-		return new Color(65, 135, 175, 255);
+		return new Color(86, 180, 233, 255);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "currentSubColor", name = "Current sub direction color", description = "Nearest diagonal to the selected highlight heading; exact ties choose clockwise.", section = colors, position = 20)
 	default Color currentSubColor()
 	{
-		return new Color(65, 135, 175, 255);
+		return new Color(86, 180, 233, 255);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "oppositeColor", name = "Opposite direction color", description = "Cardinal opposite the current cardinal.", section = colors, position = 21)
 	default Color oppositeColor()
 	{
-		return new Color(173, 39, 0, 255);
+		return new Color(230, 159, 0, 255);
 	}
 
 	@Alpha
 	@ConfigItem(keyName = "oppositeSubColor", name = "Opposite sub direction color", description = "Diagonal opposite the current diagonal.", section = colors, position = 22)
 	default Color oppositeSubColor()
 	{
-		return new Color(194, 44, 0, 255);
+		return new Color(230, 159, 0, 255);
 	}
 
 	@Alpha

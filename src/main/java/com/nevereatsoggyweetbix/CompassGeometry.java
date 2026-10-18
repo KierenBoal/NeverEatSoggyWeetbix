@@ -21,9 +21,11 @@ final class CompassGeometry
 
 	final Path2D.Double inner = new Path2D.Double();
 	final Path2D.Double outer = new Path2D.Double();
+	final DirectionalIndicatorGeometry indicator = new DirectionalIndicatorGeometry();
 	final Path2D.Double[] spokes = new Path2D.Double[8];
 	final Point2D.Double[] labels = new Point2D.Double[8];
 	final double[] rotations = new double[8];
+	double outerRadius = Double.NaN;
 
 	CompassGeometry()
 	{
@@ -37,6 +39,8 @@ final class CompassGeometry
 	{
 		inner.reset();
 		outer.reset();
+		indicator.path.reset();
+		outerRadius = Double.NaN;
 		Arrays.fill(labels, null);
 		Arrays.fill(rotations, 0);
 		for (Path2D.Double spoke : spokes)
@@ -52,7 +56,7 @@ final class CompassGeometry
 			return;
 		}
 		// One world-space radius for each ring: no per-point screen-space offsets.
-		double outerRadius = radius + worldGap;
+		outerRadius = radius + worldGap;
 		double labelRadius = radius + worldGap / 2;
 		boolean innerPenDown = false;
 		boolean outerPenDown = false;

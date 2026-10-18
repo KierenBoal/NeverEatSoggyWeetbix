@@ -21,6 +21,9 @@ import net.runelite.api.GameState;
 import net.runelite.api.Model;
 import net.runelite.api.Perspective;
 import net.runelite.api.Player;
+import net.runelite.api.Point;
+import net.runelite.api.WorldView;
+import net.runelite.api.coords.LocalPoint;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -102,15 +105,34 @@ public class PlayerCompassOverlay extends Overlay
 			+ (strokeWidth(config.innerThickness()) + strokeWidth(config.outerThickness())) / 2.0;
 		double radius = Math.max(0, Math.min(128, config.renderDistance())) * Perspective.LOCAL_TILE_SIZE;
 		geometry.update(anchor, radius, bandWidth);
-		Rectangle bounds = drawingBounds(viewport);
+		HighlightCalculation highlight = config.highlightCalculation();
+		CompassProjection playerProjection = highlight == HighlightCalculation.FACING_PLAYER
+			|| highlight == HighlightCalculation.FROM_PLAYER_TO_MOUSE
+			? CompassProjection.create(client, player.getWorldView()) : null;
+		double heading = highlight.heading(anchor.projection, player.getCurrentOrientation(), playerProjection);
+		if (highlight == HighlightCalculation.FROM_PLAYER_TO_MOUSE)
+		{
+			Point mouse = client.getMouseCanvasPosition();
+			WorldView worldView = player.getWorldView();
+			LocalPoint location = player.getLocalLocation();
+			if (mouse != null && viewport.contains(mouse.getX(), mouse.getY()) && !client.isMenuOpen()
+				&& worldView != null && location != null && worldView.contains(location))
+			{
+				Integer ground = CompassAnchor.groundHeight(client, worldView, location);
+				if (ground != null)
+				{
+					heading = HighlightCalculation.mouseHeading(anchor.projection, playerProjection,
+						location.getX(), location.getY(), (double) ground - player.getAnimationHeightOffset(),
+						mouse.getX(), mouse.getY());
+				}
+			}
+		}
+		geometry.indicator.update(anchor, geometry.outerRadius, heading, config);
+		Rectangle bounds = drawingBounds(viewport, geometry);
 		if (bounds.isEmpty())
 		{
 			return null;
 		}
-		HighlightCalculation highlight = config.highlightCalculation();
-		CompassProjection playerProjection = highlight == HighlightCalculation.FACING_PLAYER
-			? CompassProjection.create(client, player.getWorldView()) : null;
-		double heading = highlight.heading(anchor.projection, player.getCurrentOrientation(), playerProjection);
 		Graphics2D target;
 		boolean maskPlayer = !config.drawAbovePlayer() && model != null;
 		boolean masked = maskPlayer || (!config.drawAboveNpcs() && config.maxNpcs() > 0)
@@ -158,6 +180,14 @@ public class PlayerCompassOverlay extends Overlay
 		drawCircles(graphics, geometry);
 		drawConnectors(graphics, heading, geometry);
 		drawLetters(graphics, heading, geometry);
+		if (config.directionalIndicatorEnabled() && geometry.indicator.path.getCurrentPoint() != null)
+		{
+			graphics.setColor(opacity(config.directionalIndicatorFillColor()));
+			graphics.fill(geometry.indicator.path);
+			graphics.setStroke(stroke(config.directionalIndicatorLineThickness()));
+			graphics.setColor(opacity(config.directionalIndicatorLineColor()));
+			graphics.draw(geometry.indicator.path);
+		}
 	}
 
 	private void drawCircles(Graphics2D graphics, CompassGeometry geometry)
@@ -209,6 +239,28 @@ public class PlayerCompassOverlay extends Overlay
 
 	private void drawConnectors(Graphics2D graphics, double heading, CompassGeometry geometry)
 	{
+		if (config.enableConnectorDropShadow())
+		{
+			Graphics2D shadow = (Graphics2D) graphics.create();
+			try
+			{
+				int offset = connectorShadowOffset();
+				shadow.translate(offset, offset);
+				shadow.setStroke(stroke(config.connectorThickness()));
+				shadow.setColor(opacity(config.connectorDropShadowColor()));
+				for (CompassDirection direction : CompassDirection.ALL)
+				{
+					if (direction.connectorVisible(config))
+					{
+						shadow.draw(geometry.spokes[direction.ordinal()]);
+					}
+				}
+			}
+			finally
+			{
+				shadow.dispose();
+			}
+		}
 		graphics.setStroke(stroke(config.connectorThickness()));
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
@@ -280,12 +332,19 @@ public class PlayerCompassOverlay extends Overlay
 		}
 	}
 
-	private Rectangle drawingBounds(Rectangle viewport)
+	Rectangle drawingBounds(Rectangle viewport, CompassGeometry geometry)
 	{
 		Rectangle2D bounds = null;
+		if (config.directionalIndicatorEnabled() && geometry.indicator.path.getCurrentPoint() != null)
+		{
+			Rectangle2D shapeBounds = geometry.indicator.path.getBounds2D();
+			double halfStroke = strokeWidth(config.directionalIndicatorLineThickness()) / 2.0;
+			bounds = new Rectangle2D.Double(shapeBounds.getX() - halfStroke, shapeBounds.getY() - halfStroke,
+				shapeBounds.getWidth() + halfStroke * 2, shapeBounds.getHeight() + halfStroke * 2);
+		}
 		if (config.showInnerRing() && geometry.inner.getCurrentPoint() != null)
 		{
-			bounds = geometry.inner.getBounds2D();
+			bounds = union(bounds, geometry.inner.getBounds2D());
 		}
 		if (config.showOuterRing() && geometry.outer.getCurrentPoint() != null)
 		{
@@ -309,6 +368,10 @@ public class PlayerCompassOverlay extends Overlay
 			if (direction.connectorVisible(config) && geometry.spokes[index].getCurrentPoint() != null)
 			{
 				bounds = union(bounds, geometry.spokes[index].getBounds2D());
+				if (config.enableConnectorDropShadow())
+				{
+					bounds = union(bounds, translateBounds(geometry.spokes[index].getBounds2D(), connectorShadowOffset()));
+				}
 			}
 			Point2D.Double label = geometry.labels[index];
 			if (direction.lettersVisible(config) && label != null)
@@ -390,6 +453,11 @@ public class PlayerCompassOverlay extends Overlay
 		return Math.max(0, Math.min(128, config.ringDropShadowOffset()));
 	}
 
+	private int connectorShadowOffset()
+	{
+		return Math.max(0, Math.min(128, config.connectorDropShadowOffset()));
+	}
+
 	void start()
 	{
 		npcOcclusion.start();
@@ -408,6 +476,7 @@ public class PlayerCompassOverlay extends Overlay
 
 	void clear()
 	{
+		geometry.indicator.path.reset();
 		if (buffer != null)
 		{
 			buffer.flush();

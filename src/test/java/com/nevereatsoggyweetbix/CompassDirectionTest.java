@@ -104,11 +104,11 @@ public class CompassDirectionTest
 		assertEquals(Color.WHITE, config.baseColor());
 		assertEquals(Color.WHITE, config.innerColor());
 		assertEquals(Color.WHITE, config.outerColor());
-		assertEquals(new Color(0x4187AF), config.currentColor());
-		assertEquals(new Color(0xAD2700), config.oppositeColor());
-		assertEquals(new Color(65, 135, 175, 255), config.currentSubColor());
-		assertEquals(new Color(0xC22C00), config.oppositeSubColor());
-		assertEquals(191, CompassDirection.withOpacity(adjacent, config.overallOpacity()).getAlpha());
+		assertEquals(new Color(0x56B4E9), config.currentColor());
+		assertEquals(new Color(0xE69F00), config.oppositeColor());
+		assertEquals(config.currentColor(), config.currentSubColor());
+		assertEquals(config.oppositeColor(), config.oppositeSubColor());
+		assertEquals(255, CompassDirection.withOpacity(adjacent, config.overallOpacity()).getAlpha());
 		assertEquals(HighlightCalculation.FACING_CAMERA, config.highlightCalculation());
 		assertTrue(config.drawAboveNpcs());
 		assertEquals(12, config.maxNpcs());
@@ -118,6 +118,12 @@ public class CompassDirectionTest
 		assertTrue(config.enableDropShadow());
 		assertEquals(Color.BLACK, config.dropShadowColor());
 		assertEquals(1, config.dropShadowOffset());
-		assertEquals(1.5, config.renderDistance(), 0);
+		assertEquals(1.0, config.renderDistance(), 0);
+		assertEquals(DirectionalIndicatorShape.ARROW, config.directionalIndicatorShape());
+		assertEquals(32, config.directionalIndicatorWidth());
+		assertEquals(32, config.directionalIndicatorHeight());
+		assertTrue(config.enableConnectorDropShadow());
+		assertEquals(Color.BLACK, config.connectorDropShadowColor());
+		assertEquals(1, config.connectorDropShadowOffset());
 	}
 }
