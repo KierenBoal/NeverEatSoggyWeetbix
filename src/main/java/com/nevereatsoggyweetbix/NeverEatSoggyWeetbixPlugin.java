@@ -26,7 +26,7 @@ import net.runelite.client.util.HotkeyListener;
 @PluginDescriptor(
 	name = "World compass",
 	tags = {"world", "compass", "directions", "never", "eat", "soggy", "wheebix", "weetbix", "nesw"},
-	internalName = "never_eat_soggy_weetbix"
+	internalName = "world-compass"
 )
 public class NeverEatSoggyWeetbixPlugin extends Plugin
 {

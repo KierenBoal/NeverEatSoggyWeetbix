@@ -4,7 +4,7 @@
 
 ## Which way is north again lol?
 
-Tired of saying dumb shit like "Never Eat Soggy Weet-Bix" to calculate which direction you are calling? Well, with this, maybe
+Tired of saying dumb shit like "Never Eat Soggy Weet-Bix" to calculate which direction you are calling? Well, with this, maybe it'll be a bit easier.
 
 ![World compass](md_images/hero.jpg)
 
