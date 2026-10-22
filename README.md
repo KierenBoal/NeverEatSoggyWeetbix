@@ -1,6 +1,6 @@
 # World compass
-Future badge link: (https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/WorldCompass)
-Future badge link: (https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/WorldCompass)
+Future badge link: (https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/world-compass)
+Future badge link: (https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/world-compass)
 
 ## Which way is north again lol?
 
