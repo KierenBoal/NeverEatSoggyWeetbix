@@ -1,6 +1,6 @@
 # World compass
-Future badge link: (https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/world-compass)
-Future badge link: (https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/world-compass)
+![Rank Badge](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/world-compass)
+![Installs Badge](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/world-compass)
 
 ## Which way is north again lol?
 
@@ -10,7 +10,7 @@ Tired of saying dumb shit like "Never Eat Soggy Weet-Bix" to calculate which dir
 
 Or do what you want with it lol
 
-![World compass](md_images/anti_hero.jpg)
+![Goofy compass](md_images/anti_hero.jpg)
 
 ^ What it looks like. Screenshots from OldSchool RuneScape, owned by Jagex.
 
