@@ -1,10 +1,8 @@
 package com.nevereatsoggyweetbix;
 
-import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
-import net.runelite.api.NPCComposition;
 import net.runelite.api.WorldView;
 
 final class NpcOcclusion extends ActorOcclusion<NPC>
@@ -26,15 +24,8 @@ final class NpcOcclusion extends ActorOcclusion<NPC>
 		return npc.getIndex();
 	}
 
-	@Override
-	protected int footprintTiles(NPC npc)
+	int select(Rectangle bounds, NeverEatSoggyWeetbixConfig config)
 	{
-		NPCComposition composition = npc.getTransformedComposition();
-		return composition == null ? 0 : Math.max(1, composition.getSize());
-	}
-
-	void erase(Graphics2D graphics, Rectangle bounds, NeverEatSoggyWeetbixConfig config, ActorCompassMask mask)
-	{
-		super.erase(graphics, bounds, config.drawAboveNpcs(), config.maxNpcs(), mask);
+		return super.select(bounds, config.drawAboveNpcs(), config.maxNpcs());
 	}
 }

@@ -1,11 +1,9 @@
 package com.nevereatsoggyweetbix;
 
-import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.WorldView;
-import net.runelite.api.coords.WorldArea;
 
 /** Other-player masking has its own budget and never includes the local player. */
 final class PlayerOcclusion extends ActorOcclusion<Player>
@@ -28,20 +26,13 @@ final class PlayerOcclusion extends ActorOcclusion<Player>
 	}
 
 	@Override
-	protected int footprintTiles(Player player)
-	{
-		WorldArea area = player.getWorldArea();
-		return area == null ? 0 : Math.max(1, Math.max(area.getWidth(), area.getHeight()));
-	}
-
-	@Override
 	protected Player excludedActor()
 	{
 		return client.getLocalPlayer();
 	}
 
-	void erase(Graphics2D graphics, Rectangle bounds, NeverEatSoggyWeetbixConfig config, ActorCompassMask mask)
+	int select(Rectangle bounds, NeverEatSoggyWeetbixConfig config)
 	{
-		super.erase(graphics, bounds, config.drawAbovePlayers(), config.maxPlayers(), mask);
+		return super.select(bounds, config.drawAbovePlayers(), config.maxPlayers());
 	}
 }

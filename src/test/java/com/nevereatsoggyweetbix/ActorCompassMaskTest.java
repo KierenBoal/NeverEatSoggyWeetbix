@@ -29,7 +29,7 @@ public class ActorCompassMaskTest
 			graphics.setColor(new Color(255, 0, 0, 128));
 			new ActorCompassMask().eraseFaces(graphics, new Rectangle(0, 0, 40, 40),
 				new int[]{2, 14, 2, 24, 36, 36}, new int[]{2, 2, 36, 2, 2, 36},
-				2, new int[]{0, 3}, new int[]{1, 4}, new int[]{2, 5}, null, null);
+				2, new int[]{0, 3}, new int[]{2, 5}, new int[]{1, 4}, null, null);
 			assertEquals(0, image.getRGB(4, 8) >>> 24);
 			assertEquals(0, image.getRGB(34, 8) >>> 24);
 			assertEquals(128, image.getRGB(20, 8) >>> 24);
@@ -37,6 +37,11 @@ public class ActorCompassMaskTest
 			// Masking must not leak its composite or color back into later overlays.
 			graphics.fillRect(20, 20, 1, 1);
 			assertEquals(192, image.getRGB(20, 20) >>> 24);
+			// Large projected faces must retain their winding when the signed area exceeds an int.
+			new ActorCompassMask().eraseFaces(graphics, new Rectangle(0, 0, 40, 40),
+				new int[]{-50000, 50000, 0}, new int[]{50000, 50000, -150000},
+				1, new int[]{0}, new int[]{1}, new int[]{2}, null, null);
+			assertEquals(0, image.getRGB(20, 38) >>> 24);
 		}
 		finally
 		{
@@ -45,9 +50,9 @@ public class ActorCompassMaskTest
 	}
 
 	@Test
-	public void transparentHiddenInvalidAndOffscreenFacesDoNotMask()
+	public void transparentHiddenInvalidOffscreenAndBackFacesDoNotMask()
 	{
-		for (int variant = 0; variant < 4; variant++)
+		for (int variant = 0; variant < 6; variant++)
 		{
 			BufferedImage image = filledImage();
 			Graphics2D graphics = image.createGraphics();
@@ -56,7 +61,8 @@ public class ActorCompassMaskTest
 				int[] x = {2, 36, variant == 2 ? Integer.MIN_VALUE : 2};
 				new ActorCompassMask().eraseFaces(graphics,
 					variant == 3 ? new Rectangle(50, 50, 10, 10) : new Rectangle(0, 0, 40, 40),
-					x, new int[]{2, 2, 36}, 1, new int[]{0}, new int[]{1}, new int[]{2},
+					x, new int[]{2, 2, 36}, 1, new int[]{0}, new int[]{variant == 4 ? 1 : 2},
+					new int[]{variant >= 4 ? 2 : 1},
 					variant == 1 ? new int[]{-2} : null, variant == 0 ? new byte[]{(byte) 255} : null);
 				assertEquals(128, image.getRGB(4, 8) >>> 24);
 			}
@@ -77,7 +83,7 @@ public class ActorCompassMaskTest
 			graphics.translate(-100, -200);
 			new ActorCompassMask().eraseFaces(graphics, new Rectangle(100, 200, 40, 40),
 				new int[]{104, 136, 136, 104}, new int[]{204, 204, 236, 236},
-				2, new int[]{0, 0}, new int[]{1, 2}, new int[]{2, 3}, null, null);
+				2, new int[]{0, 0}, new int[]{2, 3}, new int[]{1, 2}, null, null);
 			for (int y = 5; y < 35; y++)
 			{
 				for (int x = 5; x < 35; x++)

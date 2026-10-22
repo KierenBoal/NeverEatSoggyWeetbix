@@ -12,6 +12,8 @@ Or do what you want with it lol
 
 ![World compass](md_images/anti_hero.jpg)
 
+^ What it looks like. Screenshots from OldSchool RuneScape, owned by Jagex.
+
 ## Standout Config Options
 
 - **Show/hide hotkey and mode**, Hide the compass and have it visible only when holding a key if you want.
@@ -51,7 +53,6 @@ If you use a Jagex Account, follow RuneLite's [Using Jagex Accounts](https://git
 
 ## Notes
 
-- This is still a local development plugin. It has not been added to the Plugin Hub yet.
 - Feel free to fork it and make changes. If you do, credit would be appreciated.
 
 ## Creator: Kieren Boal

@@ -88,15 +88,25 @@ final class CompassProjection
 
 	Point2D.Double project(double x, double y, double height)
 	{
+		Point2D.Double result = new Point2D.Double();
+		return project(x, y, height, result) ? result : null;
+	}
+
+	boolean project(double x, double y, double height, Point2D.Double result)
+	{
 		double depth = transform(2, x, y, height);
 		if (!Double.isFinite(depth) || depth < NEAR_PLANE)
 		{
-			return null;
+			return false;
 		}
 		double screenX = centerX + transform(0, x, y, height) * scale / depth;
 		double screenY = centerY + transform(1, x, y, height) * scale / depth;
-		return Double.isFinite(screenX) && Double.isFinite(screenY)
-			? new Point2D.Double(screenX, screenY) : null;
+		if (!Double.isFinite(screenX) || !Double.isFinite(screenY))
+		{
+			return false;
+		}
+		result.setLocation(screenX, screenY);
+		return true;
 	}
 
 	/** Intersect a screen ray with the horizontal plane at the supplied height. */

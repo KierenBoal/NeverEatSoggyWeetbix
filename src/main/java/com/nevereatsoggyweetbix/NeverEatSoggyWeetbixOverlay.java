@@ -143,8 +143,9 @@ public class NeverEatSoggyWeetbixOverlay extends Overlay
 		}
 		Graphics2D target;
 		boolean maskPlayer = !config.drawAbovePlayer() && model != null;
-		boolean masked = maskPlayer || (!config.drawAboveNpcs() && config.maxNpcs() > 0)
-			|| (!config.drawAbovePlayers() && config.maxPlayers() > 0);
+		int npcsToMask = npcOcclusion.select(bounds, config);
+		int playersToMask = playerOcclusion.select(bounds, config);
+		boolean masked = maskPlayer || npcsToMask > 0 || playersToMask > 0;
 		if (masked)
 		{
 			ensureBuffer(bounds.width, bounds.height);
@@ -167,11 +168,19 @@ public class NeverEatSoggyWeetbixOverlay extends Overlay
 			{
 				actorMask.erase(target, client, player, model, bounds, CompassProjection.create(client, player.getWorldView()));
 			}
-			npcOcclusion.erase(target, bounds, config, actorMask);
-			playerOcclusion.erase(target, bounds, config, actorMask);
+			if (npcsToMask > 0)
+			{
+				npcOcclusion.eraseSelected(target, bounds, actorMask);
+			}
+			if (playersToMask > 0)
+			{
+				playerOcclusion.eraseSelected(target, bounds, actorMask);
+			}
 		}
 		finally
 		{
+			npcOcclusion.discardSelection();
+			playerOcclusion.discardSelection();
 			target.dispose();
 		}
 		if (masked)

@@ -2,6 +2,7 @@ package com.nevereatsoggyweetbix;
 
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +20,8 @@ abstract class ActorOcclusion<T extends Actor>
 	protected final Client client;
 	private final ActorMaskSelector<T> selector = new ActorMaskSelector<>();
 	private final Map<Integer, CompassProjection> projections = new HashMap<>();
+	private final Rectangle2D.Double projectedBounds = new Rectangle2D.Double();
+	private final Point2D.Double projectedPoint = new Point2D.Double();
 	private boolean active;
 
 	ActorOcclusion(Client client)
@@ -29,8 +32,6 @@ abstract class ActorOcclusion<T extends Actor>
 	protected abstract Iterable<? extends T> actors(WorldView worldView);
 
 	protected abstract int index(T actor);
-
-	protected abstract int footprintTiles(T actor);
 
 	protected T excludedActor()
 	{
@@ -111,21 +112,38 @@ abstract class ActorOcclusion<T extends Actor>
 		}
 	}
 
-	void erase(Graphics2D graphics, Rectangle bounds, boolean drawAbove, int limit, ActorCompassMask mask)
+	int select(Rectangle bounds, boolean drawAbove, int limit)
 	{
+		discardSelection();
 		if (!active || drawAbove || limit <= 0 || selector.size() == 0)
 		{
-			return;
+			return 0;
 		}
-		projections.clear();
-		selector.mask(false, limit, bounds, excludedActor(), this::coarseBounds, actor ->
+		return selector.select(false, limit, bounds, excludedActor(), this::coarseBounds);
+	}
+
+	void eraseSelected(Graphics2D graphics, Rectangle bounds, ActorCompassMask mask)
+	{
+		try
 		{
-			Model model = actor.getModel();
-			if (model != null)
+			selector.maskSelected(actor ->
 			{
-				mask.erase(graphics, client, actor, model, bounds, projection(actor.getWorldView()));
-			}
-		});
+				Model model = actor.getModel();
+				if (model != null)
+				{
+					mask.erase(graphics, client, actor, model, bounds, projection(actor.getWorldView()));
+				}
+			});
+		}
+		finally
+		{
+			discardSelection();
+		}
+	}
+
+	void discardSelection()
+	{
+		selector.clearSelection();
 		projections.clear();
 	}
 
@@ -136,9 +154,10 @@ abstract class ActorOcclusion<T extends Actor>
 		if (worldView == null || client.getWorldView(worldView.getId()) != worldView
 			|| location == null || !worldView.contains(location))
 		{
-			return new Rectangle2D.Double();
+			projectedBounds.setRect(0, 0, 0, 0);
+			return projectedBounds;
 		}
-		int footprint = footprintTiles(actor);
+		int footprint = actor.getFootprintSize();
 		int height = Math.max(actor.getLogicalHeight(), actor.getModelHeight());
 		Integer ground = CompassAnchor.groundHeight(client, worldView, location);
 		if (footprint <= 0 || height <= 0 || ground == null)
@@ -151,7 +170,8 @@ abstract class ActorOcclusion<T extends Actor>
 		double base = ground - actor.getAnimationHeightOffset();
 		return ScreenBounds.projectBox(projection(worldView), location.getX() - radius, location.getX() + radius,
 			location.getY() - radius, location.getY() + radius,
-			base - height - Perspective.LOCAL_TILE_SIZE, base + Perspective.LOCAL_HALF_TILE_SIZE);
+			base - height - Perspective.LOCAL_TILE_SIZE, base + Perspective.LOCAL_HALF_TILE_SIZE,
+			projectedBounds, projectedPoint);
 	}
 
 	private CompassProjection projection(WorldView worldView)

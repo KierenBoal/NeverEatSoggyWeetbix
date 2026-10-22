@@ -2,10 +2,12 @@ package com.nevereatsoggyweetbix;
 
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -32,10 +34,12 @@ final class ActorMaskSelector<T>
 	private final Comparator<Entry<T>> priority = Comparator
 		.<Entry<T>>comparingDouble(entry -> entry.overlap).reversed()
 		.thenComparingInt(entry -> entry.worldView).thenComparingInt(entry -> entry.index);
+	private final PriorityQueue<Entry<T>> best = new PriorityQueue<>(priority.reversed());
 
 	void spawn(int worldView, int index, T actor)
 	{
 		tracked.put(key(worldView, index), new Entry<>(worldView, index, actor));
+		clearSelection();
 	}
 
 	void despawn(int worldView, int index, T actor)
@@ -46,25 +50,19 @@ final class ActorMaskSelector<T>
 		{
 			tracked.remove(key);
 		}
-		candidates.clear();
+		clearSelection();
 	}
 
 	void removeWorld(int worldView)
 	{
 		tracked.values().removeIf(entry -> entry.worldView == worldView);
-		candidates.clear();
+		clearSelection();
 	}
 
-	int mask(boolean drawAbove, int limit, Rectangle2D drawingBounds,
-		Function<T, Rectangle2D> boundsLookup, Consumer<T> maskActor)
+	int select(boolean drawAbove, int limit, Rectangle2D drawingBounds, T excludedActor,
+		Function<T, Rectangle2D> boundsLookup)
 	{
-		return mask(drawAbove, limit, drawingBounds, null, boundsLookup, maskActor);
-	}
-
-	int mask(boolean drawAbove, int limit, Rectangle2D drawingBounds, T excludedActor,
-		Function<T, Rectangle2D> boundsLookup, Consumer<T> maskActor)
-	{
-		candidates.clear();
+		clearSelection();
 		if (drawAbove || limit <= 0 || drawingBounds.isEmpty())
 		{
 			return 0;
@@ -76,22 +74,55 @@ final class ActorMaskSelector<T>
 				continue;
 			}
 			Rectangle2D actorBounds = boundsLookup.apply(entry.actor);
-			Rectangle2D overlap = actorBounds == null ? drawingBounds : drawingBounds.createIntersection(actorBounds);
-			if (!overlap.isEmpty())
+			double width = actorBounds == null ? drawingBounds.getWidth()
+				: Math.min(drawingBounds.getMaxX(), actorBounds.getMaxX())
+					- Math.max(drawingBounds.getMinX(), actorBounds.getMinX());
+			double height = actorBounds == null ? drawingBounds.getHeight()
+				: Math.min(drawingBounds.getMaxY(), actorBounds.getMaxY())
+					- Math.max(drawingBounds.getMinY(), actorBounds.getMinY());
+			if (width > 0 && height > 0)
 			{
-				entry.overlap = overlap.getWidth() * overlap.getHeight();
-				candidates.add(entry);
+				entry.overlap = width * height;
+				if (best.size() < limit)
+				{
+					best.offer(entry);
+				}
+				else if (priority.compare(entry, best.peek()) < 0)
+				{
+					best.poll();
+					best.offer(entry);
+				}
 			}
 		}
-		candidates.sort(priority);
-		int count = Math.min(limit, candidates.size());
-		for (int i = 0; i < count; i++)
+		// Drain worst-first, then reverse without copying the queue into a temporary array.
+		while (!best.isEmpty())
 		{
-			// Each selected attempt consumes a slot, even when its model is unavailable.
-			maskActor.accept(candidates.get(i).actor);
+			candidates.add(best.poll());
 		}
+		Collections.reverse(candidates);
+		return candidates.size();
+	}
+
+	void maskSelected(Consumer<T> maskActor)
+	{
+		try
+		{
+			for (Entry<T> entry : candidates)
+			{
+				// Each selected attempt consumes a slot, even when its model is unavailable.
+				maskActor.accept(entry.actor);
+			}
+		}
+		finally
+		{
+			clearSelection();
+		}
+	}
+
+	void clearSelection()
+	{
 		candidates.clear();
-		return count;
+		best.clear();
 	}
 
 	int size()
@@ -102,7 +133,7 @@ final class ActorMaskSelector<T>
 	void clear()
 	{
 		tracked.clear();
-		candidates.clear();
+		clearSelection();
 	}
 
 	private static long key(int worldView, int index)

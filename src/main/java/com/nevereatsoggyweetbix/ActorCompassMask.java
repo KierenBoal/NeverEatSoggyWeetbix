@@ -1,10 +1,10 @@
 package com.nevereatsoggyweetbix;
 
 import java.awt.AlphaComposite;
-import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Arrays;
 import net.runelite.api.AABB;
@@ -21,6 +21,8 @@ final class ActorCompassMask
 	private int[] vertexY = new int[0];
 	private final int[] triangleX = new int[3];
 	private final int[] triangleY = new int[3];
+	private final Rectangle2D.Double projectedBounds = new Rectangle2D.Double();
+	private final Point2D.Double projectedPoint = new Point2D.Double();
 
 	void erase(Graphics2D graphics, Client client, Actor actor, Model model, Rectangle bounds, CompassProjection projection)
 	{
@@ -47,7 +49,8 @@ final class ActorCompassMask
 				location.getX() + box.getCenterX() + box.getExtremeX(),
 				location.getY() + box.getCenterZ() - box.getExtremeZ(),
 				location.getY() + box.getCenterZ() + box.getExtremeZ(),
-				height + box.getCenterY() - box.getExtremeY(), height + box.getCenterY() + box.getExtremeY());
+				height + box.getCenterY() - box.getExtremeY(), height + box.getCenterY() + box.getExtremeY(),
+				projectedBounds, projectedPoint);
 			if (projected != null && !projected.intersects(bounds))
 			{
 				return;
@@ -75,8 +78,7 @@ final class ActorCompassMask
 		Graphics2D mask = (Graphics2D) graphics.create();
 		try
 		{
-			mask.setComposite(AlphaComposite.DstOut);
-			mask.setColor(Color.WHITE);
+			mask.setComposite(AlphaComposite.Clear);
 			// Opaque triangle coverage prevents shared-edge seams in the mask.
 			mask.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 			for (int face = 0; face < faceCount; face++)
@@ -88,6 +90,13 @@ final class ActorCompassMask
 				}
 				int first = a[face], second = b[face], third = c[face];
 				if (!valid(x, y, first) || !valid(x, y, second) || !valid(x, y, third))
+				{
+					continue;
+				}
+				// RuneLite draws negative screen-space winding; back faces cannot cover the compass.
+				long area = ((long) x[second] - x[first]) * ((long) y[third] - y[first])
+					- ((long) y[second] - y[first]) * ((long) x[third] - x[first]);
+				if (area >= 0)
 				{
 					continue;
 				}
