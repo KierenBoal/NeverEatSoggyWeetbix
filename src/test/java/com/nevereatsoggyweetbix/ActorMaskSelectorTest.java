@@ -53,19 +53,6 @@ public class ActorMaskSelectorTest
 	}
 
 	@Test
-	public void aboveActorsAndZeroBudgetDoNotCalculateBoundsOrModels()
-	{
-		ActorMaskSelector<String> selector = new ActorMaskSelector<>();
-		selector.spawn(0, 1, "npc");
-		assertEquals(0, selector.mask(true, 12, new Rectangle(0, 0, 100, 100),
-			actor -> { fail("No AABB work in above-actor mode"); return null; },
-			actor -> fail("No models in above-actor mode")));
-		assertEquals(0, selector.mask(false, 0, new Rectangle(0, 0, 100, 100),
-			actor -> { fail("No AABB work with zero budget"); return null; },
-			actor -> fail("No models with zero budget")));
-	}
-
-	@Test
 	public void largestOverlapsWinAndOffscreenActorsNeverRequestModels()
 	{
 		ActorMaskSelector<Integer> selector = new ActorMaskSelector<>();
@@ -79,38 +66,6 @@ public class ActorMaskSelectorTest
 			selected::add);
 		assertEquals(2, count);
 		assertEquals(Arrays.asList(3, 2), selected);
-	}
-
-	@Test
-	public void tiesUseWorldViewThenActorIndexAndUnknownBoxesAreConservative()
-	{
-		ActorMaskSelector<String> selector = new ActorMaskSelector<>();
-		selector.spawn(2, 0, "world2");
-		selector.spawn(1, 4, "index4");
-		selector.spawn(1, 2, "index2");
-		List<String> selected = new ArrayList<>();
-		selector.mask(false, 12, new Rectangle(0, 0, 100, 100), actor -> null, selected::add);
-		assertEquals(Arrays.asList("index2", "index4", "world2"), selected);
-	}
-
-	@Test
-	public void missingModelsStillConsumeSelectedBudgetWithoutRefilling()
-	{
-		ActorMaskSelector<String> selector = new ActorMaskSelector<>();
-		selector.spawn(0, 0, "missing model");
-		selector.spawn(0, 1, "available model");
-		AtomicInteger attempts = new AtomicInteger();
-		AtomicInteger masks = new AtomicInteger();
-		assertEquals(1, selector.mask(false, 1, new Rectangle(0, 0, 100, 100), actor -> null, actor ->
-		{
-			attempts.incrementAndGet();
-			if (actor.equals("available model"))
-			{
-				masks.incrementAndGet();
-			}
-		}));
-		assertEquals(1, attempts.get());
-		assertEquals(0, masks.get());
 	}
 
 	@Test

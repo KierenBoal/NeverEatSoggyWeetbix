@@ -15,14 +15,25 @@ enum CompassDirection
 		return (ordinal() & 1) != 0;
 	}
 
-	boolean lettersVisible(PlayerCompassConfig config)
+	boolean lettersVisible(NeverEatSoggyWeetbixConfig config)
 	{
 		return diagonal() ? !config.hideDiagonals() : !config.hideCardinals();
 	}
 
-	boolean connectorVisible(PlayerCompassConfig config)
+	boolean connectorVisible(NeverEatSoggyWeetbixConfig config, double heading)
 	{
-		return diagonal() ? config.showDiagonalConnectors() : config.showCardinalConnectors();
+		if (!(diagonal() ? config.showDiagonalConnectors() : config.showCardinalConnectors()))
+		{
+			return false;
+		}
+		boolean onlyCurrent = config.onlyCurrentDirectionConnectors();
+		boolean onlyOpposite = config.onlyOppositeDirectionConnectors();
+		if (!onlyCurrent && !onlyOpposite)
+		{
+			return true;
+		}
+		int offset = Math.floorMod(ordinal() - current(heading, diagonal()), 8);
+		return (onlyCurrent && offset == 0) || (onlyOpposite && offset == 4);
 	}
 
 	static int current(double heading, boolean diagonal)
@@ -33,7 +44,7 @@ enum CompassDirection
 		return (group * 2 + (diagonal ? 1 : 0)) & 7;
 	}
 
-	Color color(PlayerCompassConfig config, double heading)
+	Color color(NeverEatSoggyWeetbixConfig config, double heading)
 	{
 		int role = Math.floorMod(ordinal() - current(heading, diagonal()), 8) / 2;
 		if (diagonal())

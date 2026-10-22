@@ -2,12 +2,12 @@ package com.nevereatsoggyweetbix;
 
 public enum AnchorMode
 {
-	PLAYER_FEET("Snap to player feet"),
-	PLAYER_HEAD("Snap to player head"),
-	PLAYER_TRUE_TILE("Snap to player true tile"),
-	SCREEN_CENTER("Middle of screen"),
-	MOUSE_POSITION("Snap to mouse position"),
-	MOUSE_TILE("Snap to mouse hovered tile");
+	PLAYER_FEET("Player feet"),
+	PLAYER_HEAD("Player head"),
+	PLAYER_TRUE_TILE("True tile"),
+	SCREEN_CENTER("Screen center"),
+	MOUSE_POSITION("Mouse"),
+	MOUSE_TILE("Hovered tile");
 
 	private final String label;
 

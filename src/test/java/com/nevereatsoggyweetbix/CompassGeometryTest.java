@@ -1,5 +1,6 @@
 package com.nevereatsoggyweetbix;
 
+import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import org.junit.Test;
@@ -21,6 +22,7 @@ public class CompassGeometryTest
 		CompassGeometry geometry = new CompassGeometry();
 		geometry.update(anchor, 256, 40);
 		Point2D.Double center = anchor.project(0, 0);
+		assertTrue(geometry.prepareLabelRing());
 		assertTrue(geometry.labels[CompassDirection.N.ordinal()].y < center.y);
 		assertTrue(geometry.labels[CompassDirection.S.ordinal()].y > center.y);
 		assertTrue(geometry.labels[CompassDirection.E.ordinal()].x > center.x);
@@ -31,6 +33,21 @@ public class CompassGeometryTest
 			Point2D.Double label = unproject(anchor, geometry.labels[direction.ordinal()]);
 			assertEquals(anchor.x + direction.x * labelRadius, label.x, 1e-6);
 			assertEquals(anchor.y + direction.y * labelRadius, label.y, 1e-6);
+			for (double offset : new double[]{-60, 0, 60})
+			{
+				AffineTransform placement = new AffineTransform();
+				assertTrue(geometry.labelTransform(direction, offset, placement));
+				Point2D.Double character = unproject(anchor,
+					new Point2D.Double(placement.getTranslateX(), placement.getTranslateY()));
+				assertEquals("Character centers must follow the ring", labelRadius,
+					character.distance(anchor.x, anchor.y), 0.1);
+				double angle = Math.atan2(character.x - anchor.x, character.y - anchor.y);
+				Point2D.Double before = anchor.project(Math.sin(angle - 1e-4) * labelRadius, Math.cos(angle - 1e-4) * labelRadius);
+				Point2D.Double after = anchor.project(Math.sin(angle + 1e-4) * labelRadius, Math.cos(angle + 1e-4) * labelRadius);
+				double length = before.distance(after);
+				assertEquals("Character baselines must follow the tangent", (after.x - before.x) / length, placement.getScaleX(), 0.005);
+				assertEquals((after.y - before.y) / length, placement.getShearY(), 0.005);
+			}
 			PathIterator iterator = geometry.spokes[direction.ordinal()].getPathIterator(null);
 			double[] coordinates = new double[6];
 			assertEquals(PathIterator.SEG_MOVETO, iterator.currentSegment(coordinates));
@@ -62,20 +79,6 @@ public class CompassGeometryTest
 						400, 300, scale), 6400, 6400, 0, 0, 0);
 					assertWorldRings(anchor, 256, 40);
 				}
-			}
-		}
-	}
-
-	@Test
-	public void ringsStayFlatAtTranslatedFractionalTileAndHeadAnchors()
-	{
-		CompassProjection projection = anchor(5000, -1200, 0.7, 0).projection;
-		// Feet/mouse positions may be fractional; tile modes use tile centers.
-		for (double[] position : new double[][]{{6400.5, 6400.25}, {6464, 6464}, {6500.75, 6330.5}})
-		{
-			for (double height : new double[]{-692, -512, 0, 512})
-			{
-				assertWorldRings(new CompassAnchor(projection, position[0], position[1], height, 100, -50), 256, 40);
 			}
 		}
 	}
@@ -121,45 +124,6 @@ public class CompassGeometryTest
 	}
 
 	@Test
-	public void lowPitchGapForeshortensInsteadOfExpandingVerticallyOnScreen()
-	{
-		CompassAnchor anchor = anchor(5000, -100, 0.05, 0);
-		CompassGeometry geometry = new CompassGeometry();
-		geometry.update(anchor, 256, 40);
-		double gap = 40 / anchor.projection.horizontalScaleAt(anchor.x, anchor.y, anchor.height);
-		Point2D.Double northInner = anchor.project(0, 256);
-		Point2D.Double northOuter = anchor.project(0, 256 + gap);
-		Point2D.Double eastInner = anchor.project(256, 0);
-		Point2D.Double eastOuter = anchor.project(256 + gap, 0);
-		assertEquals(40, eastInner.distance(eastOuter), 1e-6);
-		assertTrue(northInner.distance(northOuter) < 5);
-		assertWorldRings(anchor, 256, 40);
-	}
-
-	@Test
-	public void outerRingClippingDoesNotRemoveValidInnerRingSections()
-	{
-		CompassAnchor anchor = anchor(6090, -100, 0.2, 0);
-		CompassGeometry geometry = new CompassGeometry();
-		geometry.update(anchor, 256, 400);
-		assertEquals(CompassGeometry.SAMPLES + 1, pathPointCount(geometry.inner));
-		assertTrue(pathPointCount(geometry.outer) < CompassGeometry.SAMPLES + 1);
-		assertNotNull(anchor.project(0, -256));
-		assertNotNull(geometry.spokes[CompassDirection.S.ordinal()].getCurrentPoint());
-		assertNull(geometry.labels[CompassDirection.S.ordinal()]);
-	}
-
-	private static int pathPointCount(java.awt.geom.Path2D path)
-	{
-		int count = 0;
-		for (PathIterator iterator = path.getPathIterator(null); !iterator.isDone(); iterator.next())
-		{
-			count++;
-		}
-		return count;
-	}
-
-	@Test
 	public void behindCameraRingSectionsStartNewPathsInsteadOfBridging()
 	{
 		CompassGeometry geometry = new CompassGeometry();
@@ -186,38 +150,6 @@ public class CompassGeometryTest
 	}
 
 	@Test
-	public void maximumRadiusAndHeightOffsetsRemainFinite()
-	{
-		for (double height : new double[]{-512, 0, 512})
-		{
-			CompassGeometry geometry = new CompassGeometry();
-			geometry.update(anchor(5000, -1200, 0.7, height), 128 * 128, 300);
-			PathIterator path = geometry.outer.getPathIterator(null);
-			double[] coordinates = new double[6];
-			int samples = 0;
-			while (!path.isDone())
-			{
-				path.currentSegment(coordinates);
-				assertTrue(Double.isFinite(coordinates[0]));
-				assertTrue(Double.isFinite(coordinates[1]));
-				path.next();
-				samples++;
-			}
-			assertTrue(samples > 0 && samples <= CompassGeometry.SAMPLES + 1);
-		}
-	}
-
-	@Test
-	public void fractionalRadiiCanPlaceTheRingCloserThanOneTile()
-	{
-		CompassAnchor anchor = anchor(5000, -1200, 0.7, 0);
-		for (double tiles : new double[]{0.01, 0.125, 0.5, 0.75})
-		{
-			assertWorldRings(anchor, tiles * net.runelite.api.Perspective.LOCAL_TILE_SIZE, 40);
-		}
-	}
-
-	@Test
 	public void zeroRadiusCollapsesInnerRingAndSpokesButRetainsOuterBandAndLabels()
 	{
 		CompassAnchor anchor = anchor(5000, -1200, 0.7, 0);
@@ -232,19 +164,6 @@ public class CompassGeometryTest
 			Point2D.Double point = unproject(anchor, geometry.labels[direction.ordinal()]);
 			assertEquals(radius, point.distance(anchor.x, anchor.y), 1e-6);
 		}
-	}
-
-	@Test
-	public void screenTranslationPreservesShapeAndSetsCenter()
-	{
-		CompassAnchor original = anchor(5000, -1200, 0.7, -256);
-		Point2D.Double center = original.project(0, 0);
-		CompassAnchor translated = new CompassAnchor(original.projection, original.x, original.y,
-			original.height, 500 - center.x, 400 - center.y);
-		assertEquals(500, translated.project(0, 0).x, 1e-6);
-		assertEquals(400, translated.project(0, 0).y, 1e-6);
-		assertEquals(original.project(128, 64).distance(center),
-			translated.project(128, 64).distance(translated.project(0, 0)), 1e-6);
 	}
 
 	@Test

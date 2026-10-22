@@ -11,6 +11,7 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.font.FontRenderContext;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -28,7 +29,7 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
-public class PlayerCompassOverlay extends Overlay
+public class NeverEatSoggyWeetbixOverlay extends Overlay
 {
 	private static final BasicStroke[] STROKES = new BasicStroke[12];
 
@@ -41,7 +42,7 @@ public class PlayerCompassOverlay extends Overlay
 	}
 
 	private final Client client;
-	private final PlayerCompassConfig config;
+	private final NeverEatSoggyWeetbixConfig config;
 	private final CompassGeometry geometry = new CompassGeometry();
 	private final ActorCompassMask actorMask = new ActorCompassMask();
 	private final NpcOcclusion npcOcclusion;
@@ -49,17 +50,18 @@ public class PlayerCompassOverlay extends Overlay
 	private final CompassTextLayer textLayer = new CompassTextLayer();
 	private final Shape[] placedGlyphs = new Shape[8];
 	private final Color[] letterColors = new Color[8];
-	private final Shape[] glyphs = new Shape[8];
-	private final Rectangle2D[] glyphBounds = new Rectangle2D[8];
+	private final CompassLabel[] labels = new CompassLabel[8];
 	private volatile boolean fontsDirty = true;
+	private volatile boolean visible = true;
 	private FontRenderContext fontContext;
 	private double letterFootprint;
+	private double labelClearance;
 	private BufferedImage buffer;
 	private int viewportWidth;
 	private int viewportHeight;
 
 	@Inject
-	PlayerCompassOverlay(Client client, PlayerCompassConfig config)
+	NeverEatSoggyWeetbixOverlay(Client client, NeverEatSoggyWeetbixConfig config)
 	{
 		this.client = client;
 		this.config = config;
@@ -72,6 +74,10 @@ public class PlayerCompassOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
+		if (!visible)
+		{
+			return null;
+		}
 		Player player = client.getLocalPlayer();
 		if (client.getGameState() != GameState.LOGGED_IN || player == null || config.overallOpacity() <= 0)
 		{
@@ -101,10 +107,7 @@ public class PlayerCompassOverlay extends Overlay
 			return null;
 		}
 		updateFonts(graphics);
-		double bandWidth = letterFootprint + Math.max(0, Math.min(128, config.ringPadding())) * 2
-			+ (strokeWidth(config.innerThickness()) + strokeWidth(config.outerThickness())) / 2.0;
-		double radius = Math.max(0, Math.min(128, config.renderDistance())) * Perspective.LOCAL_TILE_SIZE;
-		geometry.update(anchor, radius, bandWidth);
+		updateGeometry(geometry, anchor);
 		HighlightCalculation highlight = config.highlightCalculation();
 		CompassProjection playerProjection = highlight == HighlightCalculation.FACING_PLAYER
 			|| highlight == HighlightCalculation.FROM_PLAYER_TO_MOUSE
@@ -127,8 +130,13 @@ public class PlayerCompassOverlay extends Overlay
 				}
 			}
 		}
-		geometry.indicator.update(anchor, geometry.outerRadius, heading, config);
-		Rectangle bounds = drawingBounds(viewport, geometry);
+		if (highlight == HighlightCalculation.DESTINATION_TILE)
+		{
+			heading = HighlightCalculation.destinationHeading(client, player, anchor.projection, viewport);
+		}
+		geometry.updateIndicators(anchor, heading, config);
+		prepareLabels(geometry);
+		Rectangle bounds = drawingBounds(viewport, geometry, heading);
 		if (bounds.isEmpty())
 		{
 			return null;
@@ -179,15 +187,53 @@ public class PlayerCompassOverlay extends Overlay
 	{
 		drawCircles(graphics, geometry);
 		drawConnectors(graphics, heading, geometry);
-		drawLetters(graphics, heading, geometry);
-		if (config.directionalIndicatorEnabled() && geometry.indicator.path.getCurrentPoint() != null)
+		drawLetters(graphics, heading);
+		if (config.directionalIndicatorEnabled())
 		{
-			graphics.setColor(opacity(config.directionalIndicatorFillColor()));
-			graphics.fill(geometry.indicator.path);
-			graphics.setStroke(stroke(config.directionalIndicatorLineThickness()));
-			graphics.setColor(opacity(config.directionalIndicatorLineColor()));
-			graphics.draw(geometry.indicator.path);
+			drawIndicator(graphics, geometry.indicator, config.directionalIndicatorFillColor(), config.directionalIndicatorLineColor());
 		}
+		if (config.oppositeIndicator())
+		{
+			drawIndicator(graphics, geometry.oppositeIndicator, config.oppositeIndicatorFillColor(), config.oppositeIndicatorLineColor());
+		}
+	}
+
+	private void drawIndicator(Graphics2D graphics, DirectionalIndicatorGeometry indicator, Color fill, Color line)
+	{
+		if (indicator.path.getCurrentPoint() == null)
+		{
+			return;
+		}
+		drawIndicatorDropShadow(graphics, indicator, fill, line);
+		graphics.setColor(opacity(fill));
+		graphics.fill(indicator.path);
+		graphics.setStroke(stroke(config.directionalIndicatorLineThickness()));
+		graphics.setColor(opacity(line));
+		graphics.draw(indicator.path);
+	}
+
+	private void drawIndicatorDropShadow(Graphics2D graphics, DirectionalIndicatorGeometry indicator, Color fill, Color line)
+	{
+		int offset = shadowOffset();
+		Color color = opacity(config.dropShadowColor());
+		if (!config.enableDropShadow() || offset == 0 || color.getAlpha() == 0)
+		{
+			return;
+		}
+		Area foreground = new Area();
+		if (fill.getAlpha() > 0)
+		{
+			foreground.add(new Area(indicator.path));
+		}
+		if (line.getAlpha() > 0)
+		{
+			foreground.add(new Area(stroke(config.directionalIndicatorLineThickness()).createStrokedShape(indicator.path)));
+		}
+		Area shadow = foreground.createTransformedArea(AffineTransform.getTranslateInstance(offset, offset));
+		// Keep shadows out of translucent foreground, and leave outline-only centers clear.
+		shadow.subtract(foreground);
+		graphics.setColor(color);
+		graphics.fill(shadow);
 	}
 
 	private void drawCircles(Graphics2D graphics, CompassGeometry geometry)
@@ -209,11 +255,11 @@ public class PlayerCompassOverlay extends Overlay
 
 	private void drawRingDropShadows(Graphics2D graphics, CompassGeometry geometry)
 	{
-		if (!config.enableRingDropShadow())
+		if (!config.enableDropShadow())
 		{
 			return;
 		}
-		int offset = ringShadowOffset();
+		int offset = shadowOffset();
 		Graphics2D shadow = (Graphics2D) graphics.create();
 		try
 		{
@@ -221,13 +267,13 @@ public class PlayerCompassOverlay extends Overlay
 			if (config.showInnerRing())
 			{
 				shadow.setStroke(stroke(config.innerThickness()));
-				shadow.setColor(opacity(config.innerRingDropShadowColor()));
+				shadow.setColor(opacity(config.dropShadowColor()));
 				shadow.draw(geometry.inner);
 			}
 			if (config.showOuterRing())
 			{
 				shadow.setStroke(stroke(config.outerThickness()));
-				shadow.setColor(opacity(config.outerRingDropShadowColor()));
+				shadow.setColor(opacity(config.dropShadowColor()));
 				shadow.draw(geometry.outer);
 			}
 		}
@@ -239,18 +285,18 @@ public class PlayerCompassOverlay extends Overlay
 
 	private void drawConnectors(Graphics2D graphics, double heading, CompassGeometry geometry)
 	{
-		if (config.enableConnectorDropShadow())
+		if (config.enableDropShadow())
 		{
 			Graphics2D shadow = (Graphics2D) graphics.create();
 			try
 			{
-				int offset = connectorShadowOffset();
+				int offset = shadowOffset();
 				shadow.translate(offset, offset);
 				shadow.setStroke(stroke(config.connectorThickness()));
-				shadow.setColor(opacity(config.connectorDropShadowColor()));
+				shadow.setColor(opacity(config.dropShadowColor()));
 				for (CompassDirection direction : CompassDirection.ALL)
 				{
-					if (direction.connectorVisible(config))
+					if (direction.connectorVisible(config, heading))
 					{
 						shadow.draw(geometry.spokes[direction.ordinal()]);
 					}
@@ -264,7 +310,7 @@ public class PlayerCompassOverlay extends Overlay
 		graphics.setStroke(stroke(config.connectorThickness()));
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
-			if (direction.connectorVisible(config))
+			if (direction.connectorVisible(config, heading))
 			{
 				graphics.setColor(opacity(config.connectorDirectionColors() ? direction.color(config, heading) : config.baseColor()));
 				graphics.draw(geometry.spokes[direction.ordinal()]);
@@ -272,26 +318,29 @@ public class PlayerCompassOverlay extends Overlay
 		}
 	}
 
-	private void drawLetters(Graphics2D graphics, double heading, CompassGeometry geometry)
+	void prepareLabels(CompassGeometry geometry)
 	{
 		Arrays.fill(placedGlyphs, null);
+		boolean outward = config.letterRotation() == LetterRotation.ROTATION;
+		boolean curved = outward && geometry.prepareLabelRing();
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
 			int index = direction.ordinal();
 			Point2D.Double label = geometry.labels[index];
-			if (label == null || !direction.lettersVisible(config))
+			if (label == null || !direction.lettersVisible(config) || labels[index].bounds.isEmpty())
 			{
 				continue;
 			}
-			AffineTransform transform = AffineTransform.getTranslateInstance(label.x, label.y);
-			if (config.letterRotation() == LetterRotation.ROTATION)
-			{
-				transform.rotate(geometry.rotations[index]);
-			}
-			Rectangle2D textBounds = glyphBounds[index];
-			transform.translate(-textBounds.getCenterX(), -textBounds.getCenterY());
-			placedGlyphs[index] = transform.createTransformedShape(glyphs[index]);
-			letterColors[index] = opacity(direction.color(config, heading));
+			placedGlyphs[index] = curved ? labels[index].curved(geometry, direction)
+				: labels[index].straight(label, outward ? geometry.rotations[index] : 0);
+		}
+	}
+
+	private void drawLetters(Graphics2D graphics, double heading)
+	{
+		for (CompassDirection direction : CompassDirection.ALL)
+		{
+			letterColors[direction.ordinal()] = opacity(direction.color(config, heading));
 		}
 		if (config.enableDropShadow())
 		{
@@ -320,27 +369,56 @@ public class PlayerCompassOverlay extends Overlay
 		fontsDirty = false;
 		fontContext = context;
 		CompassFonts fonts = CompassFonts.fromConfig(config);
+		String[] text = DirectionLabels.resolve(config);
 		letterFootprint = 0;
+		labelClearance = 0;
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
 			int index = direction.ordinal();
 			Font font = direction.diagonal() ? fonts.diagonal : fonts.cardinal;
-			glyphs[index] = font.createGlyphVector(context, direction.name()).getOutline();
-			glyphBounds[index] = glyphs[index].getBounds2D();
-			letterFootprint = Math.max(letterFootprint,
-				Math.hypot(glyphBounds[index].getWidth(), glyphBounds[index].getHeight()));
+			char[] characters = text[index].toCharArray();
+			labels[index] = new CompassLabel(font.layoutGlyphVector(context, characters, 0, characters.length, Font.LAYOUT_LEFT_TO_RIGHT));
+			Rectangle2D bounds = labels[index].bounds;
+			if (direction.lettersVisible(config) && !bounds.isEmpty())
+			{
+				labelClearance = Math.max(labelClearance, Math.hypot(bounds.getWidth(), bounds.getHeight()));
+				letterFootprint = Math.max(letterFootprint,
+					config.letterRotation() == LetterRotation.ROTATION ? bounds.getHeight()
+						: Math.hypot(bounds.getWidth(), bounds.getHeight()));
+			}
 		}
 	}
 
-	Rectangle drawingBounds(Rectangle viewport, CompassGeometry geometry)
+	double labelBandWidth()
+	{
+		return letterFootprint + Math.max(0, Math.min(128, config.ringPadding())) * 2
+			+ (strokeWidth(config.innerThickness()) + strokeWidth(config.outerThickness())) / 2.0;
+	}
+
+	void updateGeometry(CompassGeometry geometry, CompassAnchor anchor)
+	{
+		double radius = Math.max(0, Math.min(128, config.renderDistance())) * Perspective.LOCAL_TILE_SIZE;
+		if (config.letterRotation() == LetterRotation.ROTATION)
+		{
+			double clearance = labelClearance + labelBandWidth() - letterFootprint;
+			geometry.updateCurvedLabels(anchor, radius, clearance, labelBandWidth());
+		}
+		else
+		{
+			geometry.update(anchor, radius, labelBandWidth());
+		}
+	}
+
+	Rectangle drawingBounds(Rectangle viewport, CompassGeometry geometry, double heading)
 	{
 		Rectangle2D bounds = null;
 		if (config.directionalIndicatorEnabled() && geometry.indicator.path.getCurrentPoint() != null)
 		{
-			Rectangle2D shapeBounds = geometry.indicator.path.getBounds2D();
-			double halfStroke = strokeWidth(config.directionalIndicatorLineThickness()) / 2.0;
-			bounds = new Rectangle2D.Double(shapeBounds.getX() - halfStroke, shapeBounds.getY() - halfStroke,
-				shapeBounds.getWidth() + halfStroke * 2, shapeBounds.getHeight() + halfStroke * 2);
+			bounds = indicatorBounds(geometry.indicator);
+		}
+		if (config.oppositeIndicator() && geometry.oppositeIndicator.path.getCurrentPoint() != null)
+		{
+			bounds = union(bounds, indicatorBounds(geometry.oppositeIndicator));
 		}
 		if (config.showInnerRing() && geometry.inner.getCurrentPoint() != null)
 		{
@@ -350,9 +428,9 @@ public class PlayerCompassOverlay extends Overlay
 		{
 			bounds = union(bounds, geometry.outer.getBounds2D());
 		}
-		if (config.enableRingDropShadow())
+		if (config.enableDropShadow())
 		{
-			int offset = ringShadowOffset();
+			int offset = shadowOffset();
 			if (config.showInnerRing() && geometry.inner.getCurrentPoint() != null)
 			{
 				bounds = union(bounds, translateBounds(geometry.inner.getBounds2D(), offset));
@@ -365,23 +443,22 @@ public class PlayerCompassOverlay extends Overlay
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
 			int index = direction.ordinal();
-			if (direction.connectorVisible(config) && geometry.spokes[index].getCurrentPoint() != null)
+			if (direction.connectorVisible(config, heading) && geometry.spokes[index].getCurrentPoint() != null)
 			{
 				bounds = union(bounds, geometry.spokes[index].getBounds2D());
-				if (config.enableConnectorDropShadow())
-				{
-					bounds = union(bounds, translateBounds(geometry.spokes[index].getBounds2D(), connectorShadowOffset()));
-				}
-			}
-			Point2D.Double label = geometry.labels[index];
-			if (direction.lettersVisible(config) && label != null)
-			{
-				bounds = union(bounds, new Rectangle2D.Double(label.x - letterFootprint / 2,
-					label.y - letterFootprint / 2, letterFootprint, letterFootprint));
 				if (config.enableDropShadow())
 				{
-					bounds = union(bounds, new Rectangle2D.Double(label.x - letterFootprint / 2 + shadowOffset(),
-						label.y - letterFootprint / 2 + shadowOffset(), letterFootprint, letterFootprint));
+					bounds = union(bounds, translateBounds(geometry.spokes[index].getBounds2D(), shadowOffset()));
+				}
+			}
+			Shape label = placedGlyphs[index];
+			if (label != null)
+			{
+				Rectangle2D labelBounds = label.getBounds2D();
+				bounds = union(bounds, labelBounds);
+				if (config.enableDropShadow())
+				{
+					bounds = union(bounds, translateBounds(labelBounds, shadowOffset()));
 				}
 			}
 		}
@@ -396,6 +473,15 @@ public class PlayerCompassOverlay extends Overlay
 		double maxY = Math.min(viewport.getMaxY(), Math.ceil(bounds.getMaxY() + 7));
 		return maxX > minX && maxY > minY
 			? new Rectangle((int) minX, (int) minY, (int) (maxX - minX), (int) (maxY - minY)) : new Rectangle();
+	}
+
+	private Rectangle2D indicatorBounds(DirectionalIndicatorGeometry indicator)
+	{
+		Rectangle2D shapeBounds = indicator.path.getBounds2D();
+		double halfStroke = strokeWidth(config.directionalIndicatorLineThickness()) / 2.0;
+		Rectangle2D bounds = new Rectangle2D.Double(shapeBounds.getX() - halfStroke, shapeBounds.getY() - halfStroke,
+			shapeBounds.getWidth() + halfStroke * 2, shapeBounds.getHeight() + halfStroke * 2);
+		return config.enableDropShadow() ? union(bounds, translateBounds(bounds, shadowOffset())) : bounds;
 	}
 
 	private static Rectangle2D union(Rectangle2D first, Rectangle2D second)
@@ -448,14 +534,14 @@ public class PlayerCompassOverlay extends Overlay
 		return Math.max(0, Math.min(128, config.dropShadowOffset()));
 	}
 
-	private int ringShadowOffset()
+	void toggleVisibility()
 	{
-		return Math.max(0, Math.min(128, config.ringDropShadowOffset()));
+		visible = !visible;
 	}
 
-	private int connectorShadowOffset()
+	void setVisible(boolean visible)
 	{
-		return Math.max(0, Math.min(128, config.connectorDropShadowOffset()));
+		this.visible = visible;
 	}
 
 	void start()
@@ -477,6 +563,7 @@ public class PlayerCompassOverlay extends Overlay
 	void clear()
 	{
 		geometry.indicator.path.reset();
+		geometry.oppositeIndicator.path.reset();
 		if (buffer != null)
 		{
 			buffer.flush();

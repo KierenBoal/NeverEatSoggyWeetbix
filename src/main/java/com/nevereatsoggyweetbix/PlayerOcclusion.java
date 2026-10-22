@@ -40,7 +40,7 @@ final class PlayerOcclusion extends ActorOcclusion<Player>
 		return client.getLocalPlayer();
 	}
 
-	void erase(Graphics2D graphics, Rectangle bounds, PlayerCompassConfig config, ActorCompassMask mask)
+	void erase(Graphics2D graphics, Rectangle bounds, NeverEatSoggyWeetbixConfig config, ActorCompassMask mask)
 	{
 		super.erase(graphics, bounds, config.drawAbovePlayers(), config.maxPlayers(), mask);
 	}

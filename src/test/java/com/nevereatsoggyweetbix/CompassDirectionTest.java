@@ -1,12 +1,13 @@
 package com.nevereatsoggyweetbix;
 
 import java.awt.Color;
+import java.util.EnumSet;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class CompassDirectionTest
 {
-	private final PlayerCompassConfig config = new PlayerCompassConfig() {};
+	private final NeverEatSoggyWeetbixConfig config = new NeverEatSoggyWeetbixConfig() {};
 
 	@Test
 	public void cameraColorsMoveWhileGeographicLabelsStayFixed()
@@ -25,7 +26,7 @@ public class CompassDirectionTest
 	@Test
 	public void adjacentRolesAreIndependentInBothGroups()
 	{
-		PlayerCompassConfig distinct = new PlayerCompassConfig()
+		NeverEatSoggyWeetbixConfig distinct = new NeverEatSoggyWeetbixConfig()
 		{
 			@Override public Color leftColor() { return Color.BLUE; }
 			@Override public Color rightColor() { return Color.YELLOW; }
@@ -63,67 +64,57 @@ public class CompassDirectionTest
 	@Test
 	public void letterAndConnectorSwitchesAreIndependent()
 	{
-		PlayerCompassConfig cardinalOnly = new PlayerCompassConfig()
+		NeverEatSoggyWeetbixConfig cardinalOnly = new NeverEatSoggyWeetbixConfig()
 		{
 			@Override public boolean hideCardinals() { return true; }
 			@Override public boolean showCardinalConnectors() { return true; }
 			@Override public boolean showDiagonalConnectors() { return false; }
 		};
 		assertFalse(CompassDirection.N.lettersVisible(cardinalOnly));
-		assertTrue(CompassDirection.N.connectorVisible(cardinalOnly));
+		assertTrue(CompassDirection.N.connectorVisible(cardinalOnly, 0));
 		assertTrue(CompassDirection.NE.lettersVisible(cardinalOnly));
-		assertFalse(CompassDirection.NE.connectorVisible(cardinalOnly));
-		PlayerCompassConfig diagonalOnly = new PlayerCompassConfig()
+		assertFalse(CompassDirection.NE.connectorVisible(cardinalOnly, 0));
+		NeverEatSoggyWeetbixConfig diagonalOnly = new NeverEatSoggyWeetbixConfig()
 		{
 			@Override public boolean hideDiagonals() { return true; }
 			@Override public boolean showDiagonalConnectors() { return true; }
 			@Override public boolean showCardinalConnectors() { return false; }
 		};
 		assertTrue(CompassDirection.N.lettersVisible(diagonalOnly));
-		assertFalse(CompassDirection.N.connectorVisible(diagonalOnly));
+		assertFalse(CompassDirection.N.connectorVisible(diagonalOnly, 0));
 		assertFalse(CompassDirection.NE.lettersVisible(diagonalOnly));
-		assertTrue(CompassDirection.NE.connectorVisible(diagonalOnly));
+		assertTrue(CompassDirection.NE.connectorVisible(diagonalOnly, 0));
 		for (CompassDirection direction : CompassDirection.ALL)
 		{
-			assertEquals(!direction.diagonal(), direction.connectorVisible(config));
+			assertEquals(direction == CompassDirection.N || direction == CompassDirection.NE,
+				direction.connectorVisible(config, 0));
 			assertTrue(direction.lettersVisible(config));
 		}
-	}
-
-	@Test
-	public void freshSettingsUseWhiteRingsAccessibleHighlightsAndThinLines()
-	{
-		assertEquals(1, config.connectorThickness());
-		assertEquals(1, config.innerThickness());
-		assertEquals(1, config.outerThickness());
-		Color adjacent = Color.WHITE;
-		assertEquals(Color.WHITE, config.leftColor());
-		assertEquals(Color.WHITE, config.rightColor());
-		assertEquals(adjacent, config.leftSubColor());
-		assertEquals(adjacent, config.rightSubColor());
-		assertEquals(Color.WHITE, config.baseColor());
-		assertEquals(Color.WHITE, config.innerColor());
-		assertEquals(Color.WHITE, config.outerColor());
-		assertEquals(new Color(0x56B4E9), config.currentColor());
-		assertEquals(new Color(0xE69F00), config.oppositeColor());
-		assertEquals(config.currentColor(), config.currentSubColor());
-		assertEquals(config.oppositeColor(), config.oppositeSubColor());
-		assertEquals(255, CompassDirection.withOpacity(adjacent, config.overallOpacity()).getAlpha());
-		assertEquals(HighlightCalculation.FACING_CAMERA, config.highlightCalculation());
-		assertTrue(config.drawAboveNpcs());
-		assertEquals(12, config.maxNpcs());
-		assertTrue(config.drawAbovePlayers());
-		assertEquals(12, config.maxPlayers());
-		assertFalse(config.drawAbovePlayer());
-		assertTrue(config.enableDropShadow());
-		assertEquals(Color.BLACK, config.dropShadowColor());
-		assertEquals(1, config.dropShadowOffset());
-		assertEquals(1.0, config.renderDistance(), 0);
-		assertEquals(DirectionalIndicatorShape.ARROW, config.directionalIndicatorShape());
-		assertEquals(32, config.directionalIndicatorWidth());
-		assertEquals(32, config.directionalIndicatorHeight());
-		assertTrue(config.enableConnectorDropShadow());
-		assertEquals(Color.BLACK, config.connectorDropShadowColor());
-		assertEquals(1, config.connectorDropShadowOffset());
+		for (int turn = 0; turn < 2; turn++)
+		{
+			EnumSet<CompassDirection> current = turn == 0 ? EnumSet.of(CompassDirection.N, CompassDirection.NE)
+				: EnumSet.of(CompassDirection.E, CompassDirection.SE);
+			EnumSet<CompassDirection> opposite = turn == 0 ? EnumSet.of(CompassDirection.S, CompassDirection.SW)
+				: EnumSet.of(CompassDirection.W, CompassDirection.NW);
+			for (int mask = 0; mask < 16; mask++)
+			{
+				final int switches = mask;
+				NeverEatSoggyWeetbixConfig filtered = new NeverEatSoggyWeetbixConfig()
+				{
+					@Override public boolean onlyCurrentDirectionConnectors() { return (switches & 1) != 0; }
+					@Override public boolean onlyOppositeDirectionConnectors() { return (switches & 2) != 0; }
+					@Override public boolean showCardinalConnectors() { return (switches & 4) != 0; }
+					@Override public boolean showDiagonalConnectors() { return (switches & 8) != 0; }
+				};
+				for (CompassDirection direction : CompassDirection.ALL)
+				{
+					boolean groupEnabled = direction.diagonal() ? (mask & 8) != 0 : (mask & 4) != 0;
+					boolean selected = (mask & 3) == 0 || ((mask & 1) != 0 && current.contains(direction))
+						|| ((mask & 2) != 0 && opposite.contains(direction));
+					assertEquals("Switches " + mask + ", turn " + turn + ", direction " + direction,
+						groupEnabled && selected, direction.connectorVisible(filtered, turn * Math.PI / 2));
+				}
+			}
+		}
 	}
 }

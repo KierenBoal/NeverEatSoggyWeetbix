@@ -32,7 +32,7 @@ final class CompassAnchor
 		this.translateY = translateY;
 	}
 
-	static CompassAnchor resolve(Client client, Player player, Model model, PlayerCompassConfig config,
+	static CompassAnchor resolve(Client client, Player player, Model model, NeverEatSoggyWeetbixConfig config,
 		Rectangle viewport)
 	{
 		WorldView worldView = player.getWorldView();

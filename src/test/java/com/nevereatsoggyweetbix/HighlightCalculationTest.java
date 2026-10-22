@@ -1,11 +1,33 @@
 package com.nevereatsoggyweetbix;
 
+import net.runelite.api.Perspective;
+import net.runelite.api.WorldView;
+import net.runelite.api.coords.LocalPoint;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class HighlightCalculationTest
 {
-	private final PlayerCompassConfig config = new PlayerCompassConfig() {};
+	private final NeverEatSoggyWeetbixConfig config = new NeverEatSoggyWeetbixConfig() {};
+
+	@Test
+	public void destinationHeadingTargetsTileCentersAndConvertsToAnchorAxes()
+	{
+		double centerX = 10.5 * Perspective.LOCAL_TILE_SIZE;
+		double centerY = 20.5 * Perspective.LOCAL_TILE_SIZE;
+		for (int offset : new int[]{1, 64, 127})
+		{
+			LocalPoint tile = new LocalPoint(10 * Perspective.LOCAL_TILE_SIZE + offset,
+				20 * Perspective.LOCAL_TILE_SIZE + offset, WorldView.TOPLEVEL);
+			CompassProjection player = camera(0.7, 0.8);
+			assertEquals(0, HighlightCalculation.tileHeading(player, player, centerX, centerY - 256, tile), 1e-9);
+			CompassProjection rotatedAnchor = camera(0.7 + Math.PI / 2, 0.8);
+			assertEquals(0, HighlightCalculation.tileHeading(rotatedAnchor, player, centerX - 256, centerY, tile), 1e-9);
+			assertEquals(player.heading(), HighlightCalculation.tileHeading(player, player, centerX, centerY, tile), 0);
+		}
+		CompassProjection projection = camera(0.7, 0.8);
+		assertEquals(projection.heading(), HighlightCalculation.tileHeading(projection, projection, centerX, centerY, null), 0);
+	}
 
 	private static CompassProjection camera(double yaw, double pitch)
 	{
@@ -49,22 +71,6 @@ public class HighlightCalculationTest
 	}
 
 	@Test
-	public void playerRotationTransitionsChooseClockwiseAtExactTies()
-	{
-		CompassProjection projection = camera(0.6, 0.7);
-		assertEquals(CompassDirection.N.ordinal(), CompassDirection.current(
-			HighlightCalculation.FACING_PLAYER.heading(projection, 1279, projection), false));
-		assertEquals(CompassDirection.E.ordinal(), CompassDirection.current(
-			HighlightCalculation.FACING_PLAYER.heading(projection, 1280, projection), false));
-		assertEquals(CompassDirection.E.ordinal(), CompassDirection.current(
-			HighlightCalculation.FACING_PLAYER.heading(projection, 1281, projection), false));
-		assertEquals(CompassDirection.NW.ordinal(), CompassDirection.current(
-			HighlightCalculation.FACING_PLAYER.heading(projection, 1023, projection), true));
-		assertEquals(CompassDirection.NE.ordinal(), CompassDirection.current(
-			HighlightCalculation.FACING_PLAYER.heading(projection, 1024, projection), true));
-	}
-
-	@Test
 	public void playerFacingConvertsBetweenRotatedAnchorAndPlayerViews()
 	{
 		// Local north in the player's view points east in the main anchor view.
@@ -95,12 +101,5 @@ public class HighlightCalculationTest
 				assertEquals(config.oppositeSubColor(), CompassDirection.SW.color(config, heading));
 			}
 		}
-	}
-
-	@Test
-	public void unavailablePlayerProjectionFallsBackToCameraHeading()
-	{
-		CompassProjection projection = camera(0.63, 0.7);
-		assertEquals(projection.heading(), HighlightCalculation.FACING_PLAYER.heading(projection, 1024, null), 0);
 	}
 }

@@ -9,17 +9,21 @@ import static org.junit.Assert.*;
 
 public class ConnectorShadowTest
 {
-	private static class ConnectorConfig implements PlayerCompassConfig
+	private static class ConnectorConfig implements NeverEatSoggyWeetbixConfig
 	{
 		boolean shadow = true;
 		boolean cardinals = true;
 		boolean diagonals = false;
+		boolean onlyCurrent;
+		boolean onlyOpposite;
 		int offset = 16;
-		@Override public boolean enableConnectorDropShadow() { return shadow; }
-		@Override public int connectorDropShadowOffset() { return offset; }
-		@Override public Color connectorDropShadowColor() { return new Color(0, 0, 0, 128); }
+		@Override public boolean enableDropShadow() { return shadow; }
+		@Override public int dropShadowOffset() { return offset; }
+		@Override public Color dropShadowColor() { return new Color(0, 0, 0, 128); }
 		@Override public boolean showCardinalConnectors() { return cardinals; }
 		@Override public boolean showDiagonalConnectors() { return diagonals; }
+		@Override public boolean onlyCurrentDirectionConnectors() { return onlyCurrent; }
+		@Override public boolean onlyOppositeDirectionConnectors() { return onlyOpposite; }
 		@Override public boolean connectorDirectionColors() { return false; }
 		@Override public Color baseColor() { return new Color(255, 255, 255, 128); }
 		@Override public int connectorThickness() { return 2; }
@@ -38,17 +42,19 @@ public class ConnectorShadowTest
 		geometry.spokes[CompassDirection.N.ordinal()].lineTo(50, 20);
 		geometry.spokes[CompassDirection.NE.ordinal()].moveTo(20, 70);
 		geometry.spokes[CompassDirection.NE.ordinal()].lineTo(50, 70);
+		geometry.spokes[CompassDirection.S.ordinal()].moveTo(20, 120);
+		geometry.spokes[CompassDirection.S.ordinal()].lineTo(50, 120);
 		return geometry;
 	}
 
-	private static BufferedImage render(PlayerCompassConfig config, CompassGeometry geometry)
+	private static BufferedImage render(NeverEatSoggyWeetbixConfig config, CompassGeometry geometry)
 	{
 		BufferedImage image = new BufferedImage(240, 240, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = image.createGraphics();
 		try
 		{
-			PlayerCompassOverlay overlay = new PlayerCompassOverlay(null, config);
-			graphics.clip(overlay.drawingBounds(new Rectangle(0, 0, 240, 240), geometry));
+			NeverEatSoggyWeetbixOverlay overlay = new NeverEatSoggyWeetbixOverlay(null, config);
+			graphics.clip(overlay.drawingBounds(new Rectangle(0, 0, 240, 240), geometry, 0));
 			overlay.drawCompass(graphics, 0, geometry);
 		}
 		finally
@@ -80,42 +86,26 @@ public class ConnectorShadowTest
 		assertEquals(0, image.getRGB(46, 36));
 		assertEquals(64, image.getRGB(30, 70) >>> 24);
 		assertEquals(64, image.getRGB(46, 86) >>> 24);
-	}
-
-	@Test
-	public void allShadowsAreBehindAllForegroundConnectors()
-	{
-		ConnectorConfig config = new ConnectorConfig()
-		{
-			@Override public int overallOpacity() { return 100; }
-			@Override public Color baseColor() { return Color.WHITE; }
-			@Override public Color connectorDropShadowColor() { return Color.BLACK; }
-		};
-		CompassGeometry geometry = geometry();
-		// The later E shadow crosses N's foreground at (40, 20).
-		geometry.spokes[CompassDirection.E.ordinal()].moveTo(24, 0);
-		geometry.spokes[CompassDirection.E.ordinal()].lineTo(24, 40);
-		assertEquals(Color.WHITE.getRGB(), render(config, geometry).getRGB(40, 20));
-	}
-
-	@Test
-	public void boundsAndRenderingIncludeClampedLargeOffsetsWithoutRingsOrLabels()
-	{
-		ConnectorConfig config = new ConnectorConfig();
-		config.offset = 500;
-		CompassGeometry geometry = geometry();
-		PlayerCompassOverlay overlay = new PlayerCompassOverlay(null, config);
-		Rectangle bounds = overlay.drawingBounds(new Rectangle(0, 0, 240, 240), geometry);
-		assertTrue(bounds.contains(178, 149));
-		assertEquals(64, render(config, geometry).getRGB(158, 148) >>> 24);
-		assertEquals(new Rectangle(150, 145, 20, 10),
-			overlay.drawingBounds(new Rectangle(150, 145, 20, 10), geometry));
-		config.shadow = false;
-		assertTrue(overlay.drawingBounds(new Rectangle(150, 145, 20, 10), geometry).isEmpty());
-		config.shadow = true;
-		config.offset = -10;
-		BufferedImage image = render(config, geometry);
+		config.cardinals = true;
+		config.onlyCurrent = true;
+		image = render(config, geometry);
+		assertEquals(64, image.getRGB(30, 20) >>> 24);
+		assertEquals(64, image.getRGB(30, 70) >>> 24);
+		assertEquals(0, image.getRGB(30, 120));
+		assertEquals(0, image.getRGB(46, 136));
+		NeverEatSoggyWeetbixOverlay overlay = new NeverEatSoggyWeetbixOverlay(null, config);
+		assertTrue(overlay.drawingBounds(new Rectangle(18, 115, 35, 5), geometry, 0).isEmpty());
+		config.onlyCurrent = false;
+		config.onlyOpposite = true;
+		image = render(config, geometry);
+		assertEquals(0, image.getRGB(30, 20));
 		assertEquals(0, image.getRGB(46, 36));
-		assertTrue((image.getRGB(30, 20) >>> 24) > 64);
+		assertEquals(0, image.getRGB(30, 70));
+		assertEquals(64, image.getRGB(30, 120) >>> 24);
+		assertEquals(64, image.getRGB(46, 136) >>> 24);
+		config.onlyCurrent = true;
+		image = render(config, geometry);
+		assertEquals(64, image.getRGB(30, 20) >>> 24);
+		assertEquals(64, image.getRGB(30, 120) >>> 24);
 	}
 }

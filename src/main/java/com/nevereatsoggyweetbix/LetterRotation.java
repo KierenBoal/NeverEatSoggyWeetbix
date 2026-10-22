@@ -2,8 +2,8 @@ package com.nevereatsoggyweetbix;
 
 public enum LetterRotation
 {
-	ALWAYS_UP("Always up"),
-	ROTATION("Rotation");
+	ALWAYS_UP("Upright"),
+	ROTATION("Outward");
 
 	private final String label;
 

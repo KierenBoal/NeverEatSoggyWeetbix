@@ -26,10 +26,24 @@ final class DirectionalIndicatorGeometry
 
 	final Path2D.Double path = new Path2D.Double();
 
-	void update(CompassAnchor anchor, double outerRadius, double heading, PlayerCompassConfig config)
+	static double rotationHeading(double heading, NeverEatSoggyWeetbixConfig config)
+	{
+		if (!config.limitRotationSteps() || !Double.isFinite(heading))
+		{
+			return heading;
+		}
+		int steps = Math.max(1, Math.min(360, config.rotationSteps()));
+		double turn = Math.PI * 2;
+		double step = turn / steps;
+		// Round signed angles first: adding a turn before rounding can lose negative halfway ties.
+		double rounded = Math.floor((heading % turn) / step + 0.5);
+		return ((rounded % steps + steps) % steps) * step;
+	}
+
+	void update(CompassAnchor anchor, double outerRadius, double heading, NeverEatSoggyWeetbixConfig config)
 	{
 		path.reset();
-		if (!config.directionalIndicatorEnabled() || !Double.isFinite(outerRadius) || outerRadius < 0
+		if (!Double.isFinite(outerRadius) || outerRadius < 0
 			|| !Double.isFinite(heading))
 		{
 			return;
@@ -53,7 +67,8 @@ final class DirectionalIndicatorGeometry
 		}
 		double strokeClearance = (thickness(config.directionalIndicatorLineThickness())
 			+ (config.showOuterRing() ? thickness(config.outerThickness()) : 0)) / 2.0;
-		double start = outerRadius + 4 / scale + strokeClearance / normalScale;
+		double margin = Math.max(0, Math.min(128, config.directionalIndicatorMargin()));
+		double start = outerRadius + margin / scale + strokeClearance / normalScale;
 		double width = Math.max(1, Math.min(128, config.directionalIndicatorWidth())) / scale;
 		double height = Math.max(1, Math.min(128, config.directionalIndicatorHeight())) / scale;
 		double[][] vertices;

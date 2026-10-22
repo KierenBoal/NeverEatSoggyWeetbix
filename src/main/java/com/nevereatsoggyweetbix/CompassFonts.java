@@ -18,7 +18,7 @@ final class CompassFonts
 		this.diagonal = diagonal;
 	}
 
-	static CompassFonts fromConfig(PlayerCompassConfig config)
+	static CompassFonts fromConfig(NeverEatSoggyWeetbixConfig config)
 	{
 		if (!config.useCustomFont())
 		{

@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 
 public class DirectionalIndicatorGeometryTest
 {
-	private final PlayerCompassConfig config = new PlayerCompassConfig()
+	private final NeverEatSoggyWeetbixConfig config = new NeverEatSoggyWeetbixConfig()
 	{
 		@Override public DirectionalIndicatorShape directionalIndicatorShape() { return DirectionalIndicatorShape.TRIANGLE; }
 		@Override public int directionalIndicatorHeight() { return 16; }
@@ -22,6 +22,27 @@ public class DirectionalIndicatorGeometryTest
 		return new CompassAnchor(new CompassProjection(CompassProjection.cameraMatrix(yaw, pitch,
 			6400 + Math.sin(yaw) * 1400, 6400 - Math.cos(yaw) * 1400, -1200),
 			400, 300, scale), 6400, 6400, 0, 0, 0);
+	}
+
+	@Test
+	public void rotationStepsRoundToNearestWithClockwiseTiesAndWraparound()
+	{
+		assertEquals(0, DirectionalIndicatorGeometry.rotationHeading(Math.PI / 8 - 1e-6, config), 1e-9);
+		assertEquals(Math.PI / 4, DirectionalIndicatorGeometry.rotationHeading(Math.PI / 8, config), 1e-9);
+		assertEquals(0, DirectionalIndicatorGeometry.rotationHeading(-Math.PI / 8, config), 1e-9);
+		assertEquals(7 * Math.PI / 4, DirectionalIndicatorGeometry.rotationHeading(-Math.PI / 8 - 1e-6, config), 1e-9);
+		assertEquals(0, DirectionalIndicatorGeometry.rotationHeading(2 * Math.PI - 1e-6, config), 1e-9);
+		NeverEatSoggyWeetbixConfig precise = new NeverEatSoggyWeetbixConfig()
+		{
+			@Override public int rotationSteps() { return 16; }
+		};
+		assertEquals(0, DirectionalIndicatorGeometry.rotationHeading(Math.PI / 16 - 1e-6, precise), 1e-9);
+		assertEquals(Math.PI / 8, DirectionalIndicatorGeometry.rotationHeading(Math.PI / 16, precise), 1e-9);
+		NeverEatSoggyWeetbixConfig continuous = new NeverEatSoggyWeetbixConfig()
+		{
+			@Override public boolean limitRotationSteps() { return false; }
+		};
+		assertEquals(0.123, DirectionalIndicatorGeometry.rotationHeading(0.123, continuous), 0);
 	}
 
 	@Test
@@ -49,7 +70,7 @@ public class DirectionalIndicatorGeometryTest
 						assertEquals(16 * Math.sin(heading), (tip.x - x) * scale, 1e-6);
 						assertEquals(16 * Math.cos(heading), (tip.y - y) * scale, 1e-6);
 						assertEquals(Math.sin(heading), (x - anchor.x) / Point2D.distance(x, y, anchor.x, anchor.y), 1e-8);
-						assertTrue(Point2D.distance(x, y, anchor.x, anchor.y) > geometry.outerRadius + 4 / scale);
+						assertTrue(Point2D.distance(x, y, anchor.x, anchor.y) > geometry.outerRadius + config.directionalIndicatorMargin() / scale);
 						Area overlap = new Area(new BasicStroke(1).createStrokedShape(geometry.outer));
 						Area silhouette = new Area(geometry.indicator.path);
 						silhouette.add(new Area(new BasicStroke(1).createStrokedShape(geometry.indicator.path)));
@@ -68,11 +89,13 @@ public class DirectionalIndicatorGeometryTest
 		double scale = anchor.projection.horizontalScaleAt(anchor.x, anchor.y, anchor.height);
 		for (DirectionalIndicatorShape shape : DirectionalIndicatorShape.values())
 		{
-			PlayerCompassConfig config = new PlayerCompassConfig()
+			int[] margin = {0};
+			NeverEatSoggyWeetbixConfig config = new NeverEatSoggyWeetbixConfig()
 			{
 				@Override public DirectionalIndicatorShape directionalIndicatorShape() { return shape; }
 				@Override public int directionalIndicatorWidth() { return 48; }
 				@Override public int directionalIndicatorHeight() { return 24; }
+				@Override public int directionalIndicatorMargin() { return margin[0]; }
 			};
 			DirectionalIndicatorGeometry indicator = new DirectionalIndicatorGeometry();
 			indicator.update(anchor, 200, 0, config);
@@ -89,6 +112,10 @@ public class DirectionalIndicatorGeometryTest
 			assertEquals(shape == DirectionalIndicatorShape.CIRCLE ? 64
 				: shape == DirectionalIndicatorShape.ARROW ? 7
 				: shape == DirectionalIndicatorShape.SQUARE ? 4 : 3, points.size());
+			margin[0] = 24;
+			indicator.update(anchor, 200, 0, config);
+			double shiftedMinY = groundPoints(anchor, indicator).stream().mapToDouble(point -> point.y).min().getAsDouble();
+			assertEquals(24, (shiftedMinY - minY) * scale, 1e-6);
 		}
 	}
 
@@ -99,11 +126,17 @@ public class DirectionalIndicatorGeometryTest
 		CompassAnchor valid = anchor(0, 0.7, 800);
 		indicator.update(valid, 200, 0, config);
 		assertNotNull(indicator.path.getCurrentPoint());
-		indicator.update(valid, 200, 0, new PlayerCompassConfig()
+		CompassGeometry geometry = new CompassGeometry();
+		geometry.update(valid, 192, 40);
+		geometry.updateIndicators(valid, 0, config);
+		assertNotNull(geometry.indicator.path.getCurrentPoint());
+		geometry.updateIndicators(valid, 0, new NeverEatSoggyWeetbixConfig()
 		{
 			@Override public boolean directionalIndicatorEnabled() { return false; }
+			@Override public boolean oppositeIndicator() { return true; }
 		});
-		assertNull(indicator.path.getCurrentPoint());
+		assertNull(geometry.indicator.path.getCurrentPoint());
+		assertNotNull(geometry.oppositeIndicator.path.getCurrentPoint());
 		indicator.update(valid, Double.NaN, 0, config);
 		assertNull(indicator.path.getCurrentPoint());
 		indicator.update(valid, 200, Double.NaN, config);
@@ -113,12 +146,11 @@ public class DirectionalIndicatorGeometryTest
 			CompassProjection.cameraMatrix(0, 0.2, 0, 0, -100), 400, 300, 800),
 			0, 100, 0, 0, 0);
 		assertNotNull(clipped.project(0, -60));
-		indicator.update(clipped, 60, Math.PI, new PlayerCompassConfig()
+		indicator.update(clipped, 60, Math.PI, new NeverEatSoggyWeetbixConfig()
 		{
 			@Override public int directionalIndicatorHeight() { return 128; }
 		});
 		assertNull(indicator.path.getCurrentPoint());
-		CompassGeometry geometry = new CompassGeometry();
 		geometry.update(valid, 192, 40);
 		geometry.update(clipped, Double.NaN, 40);
 		assertTrue(Double.isNaN(geometry.outerRadius));

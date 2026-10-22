@@ -33,7 +33,7 @@ final class NpcOcclusion extends ActorOcclusion<NPC>
 		return composition == null ? 0 : Math.max(1, composition.getSize());
 	}
 
-	void erase(Graphics2D graphics, Rectangle bounds, PlayerCompassConfig config, ActorCompassMask mask)
+	void erase(Graphics2D graphics, Rectangle bounds, NeverEatSoggyWeetbixConfig config, ActorCompassMask mask)
 	{
 		super.erase(graphics, bounds, config.drawAboveNpcs(), config.maxNpcs(), mask);
 	}

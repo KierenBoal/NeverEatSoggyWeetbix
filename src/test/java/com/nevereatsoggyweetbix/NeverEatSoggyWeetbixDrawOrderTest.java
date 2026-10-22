@@ -12,16 +12,17 @@ import net.runelite.client.config.FontType;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-public class PlayerCompassDrawOrderTest
+public class NeverEatSoggyWeetbixDrawOrderTest
 {
 	@Test
-	public void shadowToggleAndOverallOpacityAreAppliedIndependentlyToTextAndShadow()
+	public void sharedShadowSwitchAndOpacityApplyToAllCompassParts()
 	{
 		for (boolean enabled : new boolean[]{false, true})
 		{
-			PlayerCompassConfig config = new PlayerCompassConfig()
+			NeverEatSoggyWeetbixConfig config = new NeverEatSoggyWeetbixConfig()
 			{
 				@Override public boolean useCustomFont() { return true; }
+				@Override public boolean onlyCurrentDirectionConnectors() { return false; }
 				@Override public FontType customFont() { return new FontType().withFont(new Font(Font.SANS_SERIF, Font.BOLD, 24)); }
 				@Override public int overallOpacity() { return 50; }
 				@Override public Color currentColor() { return new Color(86, 180, 233, 128); }
@@ -30,16 +31,32 @@ public class PlayerCompassDrawOrderTest
 			};
 			CompassGeometry geometry = new CompassGeometry();
 			geometry.labels[CompassDirection.N.ordinal()] = new Point2D.Double(35, 35);
-			BufferedImage image = new BufferedImage(110, 110, BufferedImage.TYPE_INT_ARGB);
+			geometry.inner.moveTo(130, 20);
+			geometry.inner.lineTo(160, 20);
+			geometry.outer.moveTo(130, 80);
+			geometry.outer.lineTo(160, 80);
+			geometry.spokes[CompassDirection.E.ordinal()].moveTo(130, 140);
+			geometry.spokes[CompassDirection.E.ordinal()].lineTo(160, 140);
+			geometry.indicator.path.moveTo(180, 200);
+			geometry.indicator.path.lineTo(200, 200);
+			geometry.indicator.path.lineTo(200, 220);
+			geometry.indicator.path.lineTo(180, 220);
+			geometry.indicator.path.closePath();
+			BufferedImage image = new BufferedImage(300, 300, BufferedImage.TYPE_INT_ARGB);
 			Graphics2D graphics = image.createGraphics();
 			try
 			{
-				graphics.setClip(0, 0, 110, 110);
-				PlayerCompassOverlay overlay = new PlayerCompassOverlay(null, config);
+				graphics.setClip(0, 0, 300, 300);
+				NeverEatSoggyWeetbixOverlay overlay = new NeverEatSoggyWeetbixOverlay(null, config);
 				overlay.updateFonts(graphics);
+				overlay.prepareLabels(geometry);
 				overlay.drawCompass(graphics, 0, geometry);
 				assertEquals(64, maxAlpha(image, 20, 20, 30, 30));
-				assertEquals(enabled ? 128 : 0, maxAlpha(image, 52, 52, 30, 30));
+				assertEquals(enabled ? 90 : 0, maxAlpha(image, 52, 52, 30, 30));
+				assertEquals(enabled ? 90 : 0, image.getRGB(175, 52) >>> 24);
+				assertEquals(enabled ? 90 : 0, image.getRGB(175, 112) >>> 24);
+				assertEquals(enabled ? 90 : 0, image.getRGB(175, 172) >>> 24);
+				assertEquals(enabled ? 90 : 0, image.getRGB(225, 245) >>> 24);
 			}
 			finally
 			{
@@ -66,9 +83,10 @@ public class PlayerCompassDrawOrderTest
 	{
 		for (LetterRotation rotation : LetterRotation.values())
 		{
-			PlayerCompassConfig config = new PlayerCompassConfig()
+			NeverEatSoggyWeetbixConfig config = new NeverEatSoggyWeetbixConfig()
 			{
 				@Override public boolean useCustomFont() { return true; }
+				@Override public boolean onlyCurrentDirectionConnectors() { return false; }
 				@Override public FontType customFont() { return new FontType().withFont(new Font(Font.SANS_SERIF, Font.BOLD, 24)); }
 				@Override public LetterRotation letterRotation() { return rotation; }
 				@Override public int overallOpacity() { return 100; }
@@ -93,8 +111,9 @@ public class PlayerCompassDrawOrderTest
 			Graphics2D graphics = actual.createGraphics();
 			try
 			{
-				PlayerCompassOverlay overlay = new PlayerCompassOverlay(null, config);
+				NeverEatSoggyWeetbixOverlay overlay = new NeverEatSoggyWeetbixOverlay(null, config);
 				overlay.updateFonts(graphics);
+				overlay.prepareLabels(geometry);
 				overlay.drawCompass(graphics, 0, geometry);
 				Shape glyph = CompassFonts.fromConfig(config).cardinal
 					.createGlyphVector(graphics.getFontRenderContext(), "N").getOutline();

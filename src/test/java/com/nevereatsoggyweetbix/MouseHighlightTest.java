@@ -6,7 +6,7 @@ import static org.junit.Assert.*;
 
 public class MouseHighlightTest
 {
-	private final PlayerCompassConfig config = new PlayerCompassConfig() {};
+	private final NeverEatSoggyWeetbixConfig config = new NeverEatSoggyWeetbixConfig() {};
 
 	@Test
 	public void mouseWorldDirectionSurvivesCameraRotationPitchZoomAndFeetHeight()
@@ -64,7 +64,6 @@ public class MouseHighlightTest
 			CompassProjection.cameraMatrix(0, 0, 0, 0, 0), 400, 300, 800);
 		assertEquals(projection.heading(), HighlightCalculation.mouseHeading(projection, horizon,
 			0, 100, 0, 400, 300), 0);
-		assertEquals("From player to mouse", HighlightCalculation.FROM_PLAYER_TO_MOUSE.toString());
 	}
 
 	private static CompassProjection projection(double yaw, double pitch, double scale)

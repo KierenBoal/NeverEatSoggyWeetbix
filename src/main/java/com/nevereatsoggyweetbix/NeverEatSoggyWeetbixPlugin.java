@@ -15,56 +15,114 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.ProfileChanged;
+import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.util.HotkeyListener;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Player compass",
+	name = "World compass",
+	tags = {"world", "compass", "directions", "never", "eat", "soggy", "wheebix", "weetbix", "nesw"},
 	internalName = "never_eat_soggy_weetbix"
 )
-public class PlayerCompassPlugin extends Plugin
+public class NeverEatSoggyWeetbixPlugin extends Plugin
 {
 	@Inject
 	private OverlayManager overlayManager;
 
 	@Inject
-	private PlayerCompassOverlay overlay;
+	private NeverEatSoggyWeetbixOverlay overlay;
 
 	@Inject
 	private ClientThread clientThread;
 
-	@Provides
-	PlayerCompassConfig provideConfig(ConfigManager configManager)
+	@Inject
+	private KeyManager keyManager;
+
+	@Inject
+	private NeverEatSoggyWeetbixConfig config;
+
+	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.showHideHotkey())
 	{
-		return configManager.getConfig(PlayerCompassConfig.class);
+		@Override
+		public void hotkeyPressed()
+		{
+			KeybindMode mode = config.keybindMode();
+			if (mode == KeybindMode.TOGGLE)
+			{
+				overlay.toggleVisibility();
+			}
+			else
+			{
+				overlay.setVisible(mode == KeybindMode.HOLD);
+			}
+		}
+
+		@Override
+		public void hotkeyReleased()
+		{
+			KeybindMode mode = config.keybindMode();
+			if (mode != KeybindMode.TOGGLE)
+			{
+				overlay.setVisible(mode == KeybindMode.HOLD_INVISIBLE);
+			}
+		}
+	};
+
+	@Provides
+	NeverEatSoggyWeetbixConfig provideConfig(ConfigManager configManager)
+	{
+		return configManager.getConfig(NeverEatSoggyWeetbixConfig.class);
 	}
 
 	@Override
 	protected void startUp() throws Exception
 	{
+		resetHotkey();
 		overlay.invalidateFonts();
 		clientThread.invoke(overlay::start);
 		overlayManager.add(overlay);
-		log.debug("Player compass started");
+		keyManager.registerKeyListener(hotkeyListener);
+		log.debug("NeverEatSoggyWeetbix started");
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
+		keyManager.unregisterKeyListener(hotkeyListener);
+		hotkeyListener.focusLost();
 		overlayManager.remove(overlay);
 		clientThread.invoke(overlay::clear);
-		log.debug("Player compass stopped");
+		log.debug("NeverEatSoggyWeetbix stopped");
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (PlayerCompassConfig.GROUP.equals(event.getGroup()))
+		if (NeverEatSoggyWeetbixConfig.GROUP.equals(event.getGroup()))
 		{
+			if ("showHideHotkey".equals(event.getKey()) || "keybindMode".equals(event.getKey()))
+			{
+				resetHotkey();
+			}
 			overlay.invalidateFonts();
 		}
+	}
+
+	@Subscribe
+	public void onProfileChanged(ProfileChanged event)
+	{
+		resetHotkey();
+		overlay.invalidateFonts();
+	}
+
+	private void resetHotkey()
+	{
+		hotkeyListener.focusLost();
+		overlay.setVisible(config.keybindMode() != KeybindMode.HOLD);
 	}
 
 	@Subscribe
